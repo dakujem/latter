@@ -1,0 +1,7 @@
+{
+	"require": {
+		"php": ">=7.1",
+		"latte/latte": "^2.5",
+		"nette/application": "^3.0"
+	}
+}
