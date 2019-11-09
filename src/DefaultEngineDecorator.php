@@ -4,10 +4,12 @@
 namespace Dakujem\Latter;
 
 
+use Latte\Engine;
+
 /**
  * DefaultTemplateDecorator
  */
-class DefaultTemplateDecorator implements TemplateDecorator
+class DefaultEngineDecorator implements EngineDecorator
 {
 
 	/** @var array */
@@ -23,10 +25,9 @@ class DefaultTemplateDecorator implements TemplateDecorator
 	protected $filters = [];
 
 
-	public function decorate(Template $template, ...$args): Template
+	public function decorate(Engine $latte, ...$args): Engine
 	{
 		// Providers
-		$latte = $template->getLatte();
 		foreach ($this->providers as $key => $provider) {
 			$latte->addProvider($key, $provider);
 		}
@@ -36,19 +37,19 @@ class DefaultTemplateDecorator implements TemplateDecorator
 
 		// Variables
 		foreach ($this->variables as $key => $value) {
-			$template->{$key} = $value;
+			$latte->{$key} = $value;
 		}
 
 		// Filters
 		foreach ($this->filters as $key => $value) {
-			$template->addFilter($key, $value);
+			$latte->addFilter($key, $value);
 		}
 
 		// Macros
 
 		// TODO add macros
 
-		return $template;
+		return $latte;
 	}
 
 

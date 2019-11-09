@@ -4,19 +4,36 @@
 namespace Dakujem\Latter;
 
 
+use Latte\Engine;
+
 /**
  * DecoratorPipeline
  */
-class DecoratorPipeline implements TemplateDecorator
+class DecoratorPipeline implements EngineDecorator
 {
 
-	function decorate(Template $template, ...$args):Template
+	private $decorators = [];
+
+
+	function add(EngineDecorator $decorator): self
 	{
-		foreach ($this->decorators as $decorator) {
-			$template = $decorator->decorate($template, ...$args);
-		}
-		return $template;
+		$this->decorators[] = $decorator;
+		return $this;
 	}
 
+
+	function decorate(Engine $latte, ...$args): Engine
+	{
+		foreach ($this->decorators as $decorator) {
+			$latte = $decorator->decorate($latte, ...$args);
+		}
+		return $latte;
+	}
+
+
+	public function __invoke(Engine $latte, ...$args)
+	{
+		return $this->decorate($latte, ...$args);
+	}
 
 }
