@@ -1,9 +1,6 @@
 <?php
 
 
-namespace Dakujem\Latter;
-
-
 use InvalidArgumentException;
 use Latte\Engine;
 
