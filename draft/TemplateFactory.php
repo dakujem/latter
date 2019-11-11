@@ -45,7 +45,6 @@ class TemplateFactory // mirror, wrapper, substitute
 
 		$t->setTempDirectory($path);
 		$t->setAutoRefresh(false); // in debug only
-		$t->setContentType($type); //
 
 		// multi-dir lookup, split by dot
 

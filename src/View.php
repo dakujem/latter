@@ -10,24 +10,26 @@ use Psr\Http\Message\ResponseInterface as Response;
 
 class View
 {
+    /** @var callable[] */
+    private $routines = [];
+
+    /** @var callable|null */
+    private $defaultRoutine = null;
 
     /** @var array */
     private $defaultParams = [];
 
-    /** @var callable[] */
-    private $routines = [];
-
-    /** @var callable */
-    private $loader = null;
+    /** @var callable|null function():Engine */
+    private $engine = null;
 
     /** @var string[] */
     private $aliases = [];
 
-    /** @var EngineDecorator|null */
+    /** @var callable|null */
     private $decorator = null;
 
 
-    public function __construct(array $defaultParams = [])
+    function __construct(array $defaultParams = [])
     {
         $this->defaultParams = $defaultParams;
     }
@@ -35,25 +37,28 @@ class View
 
     function render(Response $response, string $name, array $params = [], Engine $latte = null): Response
     {
-        // check if a registered rendering routine exists (also check aliases)
-        $routine = $this->getRoutine($name) ?? $this->getLoader();
+        // check for $name alias
+        $alias = $this->getAlias($name);
+
+        // check if a registered rendering routine exists
+        $routine = $this->getRoutine($alias ?? $name) ?? $this->getDefaultRoutine();
 
         // a rendering routine exists, use it
         if ($routine !== null) {
-            return call_user_func($routine, $response, $name, $params, $latte, $this);
+            return call_user_func($routine, $this, $response, $params, $latte, $alias ?? $name, $name);
         }
 
         // no rendering routine exists, use the default one (needs an Engine instance)
         if (!$latte instanceof Engine) {
             throw new LogicException();
         }
-        return $this->respond($response, $latte, $name, $params);
+        return $this->respond($response, $latte, $alias ?? $name, $params);
     }
 
 
     function respond(Response $response, Engine $latte, string $template, array $params): Response
     {
-        $content = $this->decorateEngine($latte)->renderToString($template, array_merge($this->defaultParams, $params));
+        $content = $this->decorateEngine($latte)->renderToString($template, array_merge($this->getDefaultParams(), $params));
         $response->getBody()->write($content);
         return $response;
     }
@@ -67,16 +72,9 @@ class View
     }
 
 
-    function loader(callable $loader = null): self
+    function defaultRoutine(callable $routine = null): self
     {
-        $this->loader = $loader;
-        return $this;
-    }
-
-
-    function decorator(EngineDecorator $decorator = null): self
-    {
-        $this->decorator = $decorator;
+        $this->defaultRoutine = $routine;
         return $this;
     }
 
@@ -88,30 +86,60 @@ class View
     }
 
 
-    function getRoutine(string $name): ?callable
+    function param(string $name, $value): self
     {
-        return $this->routines[$this->aliases[$name] ?? $name] ?? null;
+        $this->defaultParams[$name] = $value;
+        return $this;
     }
 
 
-    function getLoader(): ?callable
+    function engine(callable $provider): self
     {
-        return $this->loader;
+        $this->engine = $provider;
+        return $this;
+    }
+
+
+    function decorator(callable $decorator = null): self
+    {
+        $this->decorator = $decorator;
+        return $this;
+    }
+
+
+    function getRoutine(string $name): ?callable
+    {
+        return $this->routines[$name] ?? null;
+    }
+
+
+    function getDefaultRoutine(): ?callable
+    {
+        return $this->defaultRoutine;
+    }
+
+
+    function getAlias(string $name): ?string
+    {
+        return $this->aliases[$name] ?? null;
+    }
+
+
+    function getDefaultParams(): array
+    {
+        return $this->defaultParams;
+    }
+
+
+    function getEngine(): ?Engine
+    {
+        return $this->engine ? call_user_func($this->engine) : null;
     }
 
 
     function decorateEngine(Engine $latte): Engine
     {
-        return $this->decorator !== null ? $this->decorator->decorate($latte) : $latte;
+        return $this->decorator !== null ? call_user_func($this->decorator, $latte) : $latte;
     }
-
-
-
-
-//	function default(string $name, $value): self
-//	{
-//		$this->defaultParams[$name] = $value;
-//		return $this;
-//	}
 
 }
