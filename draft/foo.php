@@ -6,23 +6,23 @@ use Latte\Engine;
 use Latte\Loaders\FileLoader;
 use Psr\Http\Message\ResponseInterface as Response;
 
-$view = $dic->get('view');// new View()
-$pipeline = $dic->get('viewDecorators');
-$latte = $pipeline->decorate($dic->factory('latte')); // new instance of Latte, decorated
+$view = $container->get('view');// new View()
+$pipeline = $container->get('viewDecorators');
+$latte = $pipeline->decorate($container->factory('latte')); // new instance of Latte, decorated
 
 // dekoratory mozu byt vyuzite priamo v tovarnicke, ale tam je to trochu zbytocne, pretoze mozu volania robit priamo nad isntanciou Engine
 
-$dic = new Dakujem\Sleeve();
+$container = new Dakujem\Sleeve();
 
 // Note:
 //      In most cases, a new instance of Engine should be created for each template render,
 //      thus using a "factory" service definition.
 //      This will be different for each container library, find out more in respective docs.
-$dic->set('latte', $dic->factory(function () use ($dic) {
+$container->set('latte', $container->factory(function () use ($container) {
     $engine = new Engine();
 
     // Set a temporary directory, where compiled Latte templates will be stored.
-    $engine->setTempDirectory($dic->settings['view-temp-dir']);
+    $engine->setTempDirectory($container->settings['view-temp-dir']);
 
     // To slightly improve performance on production servers, auto-refresh can be turned off.
     // This has its caveats, read the docs beforehand.
@@ -35,7 +35,7 @@ $dic->set('latte', $dic->factory(function () use ($dic) {
     return $engine;
 }));
 
-$dic->set('view', function () use ($dic) {
+$container->set('view', function () use ($container) {
     $defaultParams = [
         'projectName' => 'My Awesome Project',
     ];
@@ -69,7 +69,7 @@ $dic->set('view', function () use ($dic) {
 });
 
 
-$view = $dic->get(View::class);
+$view = $container->get(View::class);
 $view->render($response, 'index', ['foo' => 'bar']); // latte engine nie je nutne poskytovat
 
 

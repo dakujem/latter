@@ -38,21 +38,21 @@ class View
     function render(Response $response, string $name, array $params = [], Engine $latte = null): Response
     {
         // check for $name alias
-        $alias = $this->getAlias($name);
+        $target = $this->getTarget($name);
 
         // check if a registered rendering routine exists
-        $routine = $this->getRoutine($alias ?? $name) ?? $this->getDefaultRoutine();
+        $routine = $this->getRoutine($target ?? $name) ?? $this->getDefaultRoutine();
 
         // a rendering routine exists, use it
         if ($routine !== null) {
-            return call_user_func($routine, $this, $response, $params, $latte, $alias ?? $name, $name);
+            return call_user_func($routine, $this, $response, $params, $latte, $target ?? $name, $name);
         }
 
         // no rendering routine exists, use the default one (needs an Engine instance)
         if (!$latte instanceof Engine) {
             throw new LogicException();
         }
-        return $this->respond($response, $latte, $alias ?? $name, $params);
+        return $this->respond($response, $latte, $target ?? $name, $params);
     }
 
 
@@ -119,7 +119,7 @@ class View
     }
 
 
-    function getAlias(string $name): ?string
+    function getTarget(string $name): ?string
     {
         return $this->aliases[$name] ?? null;
     }
