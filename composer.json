@@ -1,4 +1,18 @@
 {
+	"name": "dakujem/latter",
+	"license": "Unlicense",
+	"keywords": [
+		"latte",
+		"template",
+		"slim",
+		"view"
+	],
+	"authors": [
+		{
+			"name": "Andrej Rypák",
+			"email": "xrypak@gmail.com"
+		}
+	],
 	"require": {
 		"php": ">=7.1",
 		"latte/latte": "^2.5",
@@ -6,5 +20,15 @@
 	},
 	"require-dev": {
 		"dakujem/sleeve": "^1@dev"
+	},
+	"autoload": {
+		"classmap": [
+			"src/"
+		]
+	},
+	"extra": {
+		"branch-alias": {
+			"dev-master": "1.0.x-dev"
+		}
 	}
 }
