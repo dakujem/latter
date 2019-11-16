@@ -30,7 +30,12 @@ $app->get('/hello/{name}', function (Request $request, Response $response, array
     $params = [
         'name' => $args['name'],
     ];
-    return (new Dakujem\Latter\View)->render($response, __DIR__ . '/templates/hello.latte', $params, new Latte\Engine);
+    return (new Dakujem\Latter\View)->render(
+        $response,
+        __DIR__ . '/templates/hello.latte',
+        $params,
+        new Latte\Engine
+    );
 });
 
 // ...
@@ -56,10 +61,10 @@ In most cases, a new `Latte\Engine` instance should be created for each template
 
 ```php
 $container->set('latte', $container->factory(function () use ($container) {
-    $engine = new Engine();
+    $engine = new Latte\Engine();
 
     // Configure the file loader to search for templates in a dedicated directory.
-    $loader = new FileLoader(__DIR__ . '/templates');
+    $loader = new Latte\Loaders\FileLoader(__DIR__ . '/templates');
     $engine->setLoader($loader);
 
     // Set a temporary directory, where compiled Latte templates will be stored.
@@ -78,7 +83,12 @@ The definition should contain:
 
 Now every time we call `$container->get('latte')`, a new instance of a configured `Latte\Engine` will be returned:
 ```php
-(new Dakujem\Latter\View)->render($response, 'hello.latte', $params, $container->get('latte'));
+(new Dakujem\Latter\View)->render(
+    $response,
+    'hello.latte',
+    $params,
+    $container->get('latte')
+);
 ```
 Note that we no longer need to prefix the template name with a full path.
 
@@ -99,10 +109,10 @@ $container->set('view', function () use ($container) {
     $defaultParams = [
         'projectName' => 'My Awesome Project',
     ];
-    $view = new View($defaultParams);
+    $view = new Dakujem\Latter\View($defaultParams);
 
     // optionally set an engine factory
-    $view->engine(function () use ($container): Engine {
+    $view->engine(function () use ($container): Latte\Engine {
         return $container->get('latte');
     });
 
@@ -110,8 +120,9 @@ $container->set('view', function () use ($container) {
 });
 ```
 
-If an engine factory is provided to the `View`, it is possible to omit providing the `Engine` instance for each rendered template.
+If an engine factory is provided to the `View` service, it is possible to omit providing the `Engine` instance for each rendered template.
 ```php
+// the render calls have gotten much shorter:
 $container->get('view')->render($response, 'hello.latte', $params);
 ```
 
@@ -143,7 +154,7 @@ $container->get('view')->render($response, 'index', $params);
 
 ### Render routines
 
-Render routines should be used to apply template-specific setup without the need for code reptition.
+Render routines should be used to apply template-specific setup without the need for code repetition.
 They may be used to
 - define filters
 - define tags (macros)
