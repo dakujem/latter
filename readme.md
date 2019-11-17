@@ -1,19 +1,22 @@
 # Latter
 
-> (☝️ it's not a typo)
+> ☝️ it's not a typo
 
 **Latte view layer for PSR-7 frameworks and stacks.**
+
+> 💿 composer require dakujem/latter
+
 
 If one wants to use the awesome [Latte templating language](https://latte.nette.org/en/) with a PSR-7 compliant framework like [Slim](https://www.slimframework.com/), one can either do all the setup by himself or use _Latter_.\
 The latter will provide him with utility and guidance when dealing with a multitude of templates reducing code repetition.
 
+Latter is a very flexible thin layer that can be tuned and tamed as one desires.
+
 > 💡\
 > Check out the [Latte documentation](https://latte.nette.org/en/guide) if you are not fluent in Latte.
 
-Latter is a very flexible thin layer that can be tuned and tamed as one desires.
 
-
-## Render Latte template as PSR-7 response
+## Render Latte template to PSR-7 response
 
 A very basic example to render a Latte template like the following
 ```latte
@@ -188,7 +191,7 @@ $view->register('shopping-cart', function (View $view, Response $response, array
         // return the count of items in the shopping cart here
     });
 
-    // one can either use aliases or provide the path to hte template file in the render reutine
+    // one can either use aliases or provide the path to the template file in the render routine
     $template = 'ClientModule/Cart/list.latte';
 
     // the params can be modified at will, for example to provide defaults

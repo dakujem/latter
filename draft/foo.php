@@ -72,6 +72,19 @@ $container->set('view', function () use ($container) {
 $view = $container->get(View::class);
 $view->render($response, 'index', ['foo' => 'bar']); // latte engine nie je nutne poskytovat
 
+$view->pipeline('tag1', 'tag2')->render($response, 'index', ['foo' => 'bar']); // ->pipeline ->select ->as ->through ->thru
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

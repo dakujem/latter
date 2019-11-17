@@ -19,7 +19,7 @@
 		"php-http/message": "^1.8"
 	},
 	"require-dev": {
-		"dakujem/sleeve": "^1@dev"
+		"dakujem/sleeve": "^1"
 	},
 	"autoload": {
 		"classmap": [
