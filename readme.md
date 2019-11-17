@@ -1,19 +1,17 @@
 # Latter
 
 > ☝️ it's not a typo
+>
+> 💿 `composer require dakujem/latter`
 
 **Latte view layer for PSR-7 frameworks and stacks.**
-
-> 💿 composer require dakujem/latter
-
 
 If one wants to use the awesome [Latte templating language](https://latte.nette.org/en/) with a PSR-7 compliant framework like [Slim](https://www.slimframework.com/), one can either do all the setup by himself or use _Latter_.\
 The latter will provide him with utility and guidance when dealing with a multitude of templates reducing code repetition.
 
 Latter is a very flexible thin layer that can be tuned and tamed as one desires.
 
-> 💡\
-> Check out the [Latte documentation](https://latte.nette.org/en/guide) if you are not fluent in Latte.
+> 💡 Check out the [Latte documentation](https://latte.nette.org/en/guide) to get fluent in Latte.
 
 
 ## Render Latte template to PSR-7 response
@@ -178,7 +176,8 @@ function(
 Example:
 ```php
 $view->register('shopping-cart', function (Runtime $context, string $name) {
-    // This callable is the place to register filters, variables and stuff for template named "shopping-cart"
+    // This callable is the place to register filters,
+    // variables and stuff for template named "shopping-cart"
 
     // Do any setup of the Engine that is needed for the template to render correctly
     $latte = $context->getEngine();
@@ -187,7 +186,8 @@ $view->register('shopping-cart', function (Runtime $context, string $name) {
     });
 
     // Template name can be set or changed freely.
-    // Note that if one only needs to set a nice name for the template to be rendered, aliases are a simpler option to do so
+    // Note that if one only needs to set a nice name for the template to be rendered,
+    // aliases are a simpler option to do so
     $template = 'ClientModule/Cart/list.latte';
 
     // The params can be modified at will, for example to provide defaults

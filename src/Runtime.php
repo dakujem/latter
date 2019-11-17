@@ -111,32 +111,15 @@ class Runtime
     }
 
 
-    function move(
-        string $target = null,
-        array $params = null,
-        Engine $engine = null,
-        Response $response = null
-    ): self {
-        return new static(
-            $this->getView(),
-            $response ?? $this->getResponse(),
-            $target ?? $this->getTarget(),
-            $params ?? $this->getParams(),
-            $engine ?? $this->getEngine(),
-            ...$this->getMore()
-        );
-    }
-
-
     function withParams(array $params): self
     {
         return new static(
-            $this->getView(),
-            $this->getResponse(),
-            $this->getTarget(),
+            $this->view,
+            $this->response,
+            $this->target,
             $params,
-            $this->getEngine(),
-            ...$this->getMore()
+            $this->engine,
+            ...$this->more
         );
     }
 
@@ -144,12 +127,12 @@ class Runtime
     function withTarget(string $target): self
     {
         return new static(
-            $this->getView(),
-            $this->getResponse(),
+            $this->view,
+            $this->response,
             $target,
-            $this->getParams(),
-            $this->getEngine(),
-            ...$this->getMore()
+            $this->params,
+            $this->engine,
+            ...$this->more
         );
     }
 
