@@ -16,7 +16,7 @@
 	"require": {
 		"php": ">=7.1",
 		"latte/latte": "^2.5",
-		"php-http/message": "^1.8"
+		"psr/http-message": "^1.0"
 	},
 	"require-dev": {
 		"dakujem/sleeve": "^1"
