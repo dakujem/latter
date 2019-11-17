@@ -35,32 +35,49 @@ class View
     }
 
 
-    function render(Response $response, string $name, array $params = [], Engine $latte = null): Response
+    function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
-        // check for $name alias
-        $target = $this->getTarget($name);
+        // check for $target alias
+        $name = $this->getName($target);
 
         // check if a registered rendering routine exists
-        $routine = $this->getRoutine($target ?? $name) ?? $this->getDefaultRoutine();
+        $routine = $this->getRoutine($name ?? $target) ?? $this->getDefaultRoutine();
 
         // a rendering routine exists, use it
         if ($routine !== null) {
-            return call_user_func($routine, $this, $response, $params, $latte, $target ?? $name, $name);
+            new Runtime($this, $response, $latte, $params, $target);
+            return call_user_func($routine, $this, $response, $params, $latte, $name ?? $target, $target);
         }
 
         // no rendering routine exists, use the default one (needs an Engine instance)
         if (!$latte instanceof Engine) {
             throw new LogicException();
         }
-        return $this->respond($response, $latte, $target ?? $name, $params);
+        return $this->respond($response, $latte, $name ?? $target, $params);
     }
 
 
     function respond(Response $response, Engine $latte, string $template, array $params): Response
     {
-        $content = $this->decorateEngine($latte)->renderToString($template, array_merge($this->getDefaultParams(), $params));
+        $content = $latte->renderToString($template, array_merge($this->getDefaultParams(), $params));
         $response->getBody()->write($content);
         return $response;
+    }
+
+
+    function pipeline(...$routines): Pipeline
+    {
+        $queue = [];
+        foreach ($routines as $key) {
+            $name = $this->getName($key) ?? $key;
+            $routine = $this->getRoutine($name);
+            if ($routine === null) {
+                $target = $name . ($name !== $key ? ' ' . $key : '');
+                throw new LogicException("Routine {$target} not registered.");
+            }
+            $queue[$name] = $routine;
+        }
+        return new Pipeline($this, $queue);
     }
 
 
@@ -79,9 +96,9 @@ class View
     }
 
 
-    function alias(string $target, string $alias): self
+    function alias(string $name, string $alias): self
     {
-        $this->aliases[$alias] = $target;
+        $this->aliases[$alias] = $name;
         return $this;
     }
 
@@ -100,13 +117,6 @@ class View
     }
 
 
-    function decorator(callable $decorator = null): self
-    {
-        $this->decorator = $decorator;
-        return $this;
-    }
-
-
     function getRoutine(string $name): ?callable
     {
         return $this->routines[$name] ?? null;
@@ -119,9 +129,9 @@ class View
     }
 
 
-    function getTarget(string $name): ?string
+    function getName(string $target): ?string
     {
-        return $this->aliases[$name] ?? null;
+        return $this->aliases[$target] ?? null;
     }
 
 
@@ -134,12 +144,6 @@ class View
     function getEngine(): ?Engine
     {
         return $this->engine ? call_user_func($this->engine) : null;
-    }
-
-
-    function decorateEngine(Engine $latte): Engine
-    {
-        return $this->decorator !== null ? call_user_func($this->decorator, $latte) : $latte;
     }
 
 }
