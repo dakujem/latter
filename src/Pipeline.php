@@ -4,13 +4,14 @@
 namespace Dakujem\Latter;
 
 use Latte\Engine;
+use LogicException;
 use Psr\Http\Message\ResponseInterface as Response;
 use RuntimeException;
 
 /**
  * Pipeline
  */
-class Pipeline
+class Pipeline implements Renderer
 {
     /** @var View */
     private $view;
@@ -32,8 +33,12 @@ class Pipeline
 
     function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
-        $context = new Runtime($this->view, $response, $target, $params, $latte);
-        $routine = function (Runtime $context, callable $next, string $name): Response {
+        $name = $this->view->getName($target) ?? $target;
+        $routines = $this->queue;
+        if (isset($routines[$name])) {
+            throw new LogicException("Duplicate routines '$name' in the pipeline.");
+        }
+        $routines[$name] = function (Runtime $context): Response {
             return $this->view->render(
                 $context->getResponse(),
                 $context->getTarget(),
@@ -41,31 +46,28 @@ class Pipeline
                 $context->getEngine()
             );
         };
-
-        $name = $this->view->getName($target) ?? $target;
-
-        $routines = $this->queue;
-        $routines[$name] = $routine;
-
+        $context = new Runtime($this->view, $response, $target, $params, $latte);
         return $this->execute($routines, $context);
     }
 
 
-    private function execute(array $routines, $context): Response
+    protected function execute(array $routines, $context): Response
     {
         foreach ($routines as $name => $routine) {
+            $result = call_user_func($routine, $context, $name);
 
-            // TODO invoke the pipeline recursively
+            // if a Response is returned, return it
+            if ($result instanceof Response) {
+                return $result;
+            }
 
-            $context = call_user_func($routine, $context, $next, $name);
-
-            if ($context instanceof Response) {
-                return $context;
+            // if a new context is returned, it becomes the context for the next routine
+            if ($result instanceof Runtime) {
+                $context = $result;
             }
         }
 
         throw new RuntimeException('Rendering pipeline did not produce a response.');
     }
-
 
 }

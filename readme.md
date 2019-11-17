@@ -165,40 +165,36 @@ They may be used to
 - modify template name
 - or even to use a completely different Engine instance or render own Response
 
-A render routine is a _callable_ with the following signature:
+A render routine is a _callable_ that receives a `Runtime` context object and returns a _response_, with the following signature:
 ```
 function(
-    Dakujem\Latter\View $view,
-    Psr\Http\Message\ResponseInterface $response,
-    array $params,          // render params
-    ?Latte\Engine $latte,   // engine provided to the rendr call (if any)
-    string $name,           // name under which the routine is registered
-    string $callName        // name used for the render call (can be an alias)
-): Psr\Http\Message\ResponseInterface
+    Dakujem\Latter\Runtime  $runtime,
+    string                  $name,    // name under which the routine is registered
+): Psr\Http\Message\ResponseInterface|Dakujem\Latter\Runtime
 ```
+
+> Note that the callable can also return a Runtime context object, this scenario will be described later.
 
 Example:
 ```php
-$view->register('shopping-cart', function (View $view, Response $response, array $params, ?Engine $latte) {
-    // this is the place to register filters, variables and stuff for the template
-    if ($latte === null) {
-        // if Engine has not been provided to the call
-        $latte = $view->getEngine();
-    }
+$view->register('shopping-cart', function (Runtime $context, string $name) {
+    // This callable is the place to register filters, variables and stuff for template named "shopping-cart"
 
-    // do any setup of the Engine that is needed for the template to render correctly
+    // Do any setup of the Engine that is needed for the template to render correctly
+    $latte = $context->getEngine();
     $latte->addFilter('count', function(){
         // return the count of items in the shopping cart here
     });
 
-    // one can either use aliases or provide the path to the template file in the render routine
+    // Template name can be set or changed freely.
+    // Note that if one only needs to set a nice name for the template to be rendered, aliases are a simpler option to do so
     $template = 'ClientModule/Cart/list.latte';
 
-    // the params can be modified at will, for example to provide defaults
-    $params = array_merge(['default' => 'value'], $params);
+    // The params can be modified at will, for example to provide defaults
+    $params = array_merge(['default' => 'value'], $context->getParams());
 
-    // the View::respond method can be used for default rendering
-    return $view->respond($response, $latte, $template, $params);
+    // the Runtime::toResponse helper method can be used for default rendering
+    return $context->toResponse($template, $params);
 });
 ```
 
@@ -219,7 +215,7 @@ The default render routine call has exactly the same signature as the named ones
 
 ### Default parameters
 
-Default parameters are merged with the parameters provided to the render call.
+Default parameters are merged with the parameters provided to each render call.
 
 If one wants to define per-template default parameters, render routines can be used.
 
@@ -230,20 +226,48 @@ $view->default('username', 'Guest');
 Default parameters can also be passed in bulk to the `View`'s constructor.
 
 
-### Engine decorator
+### Render pipelines
 
-An engine decorator is a callable that receives an `Engine` instance during every render call, and is supposed to configure it. It is common for the whole `View` instance.
+If a group of templates share a common setup that needs to be performed on each of them to be rendered, pipelines can be used. Pipelines allow multiple _pre-render_ routines to be called one after another before rendering a response.
 
-The callable can be used to configure the `Engine` instances before each template is rendered using a `View` service. It is convenient in cases where the Latte engine factory is used for manual rendering as well, or when multiple `View` services are defined.
-
+First, appropriate render routines have to be registered:
 ```php
-$view->decorator(function(Engine $latte): Engine {
-    $latte->addFilter('module', function() {
-        return 'Client Module';
-    });
-    return $latte;
+$view->register(':ClientModule', function (Runtime $context, string $name) {
+    // do setup needed for templates in the client module
+    $context->getEngine()->addFilter( ... );
+    
+    // return a context object (!)
+    return $context;
+});
+$view->register('--withUser--', function (Runtime $context, string $name) {
+    // do setup common for templates using a `$user` variable
+    $defaults = [
+        'user' => get_user( 'somehow' );
+    ];
+
+    // return a context object (!)
+    return $context->withParams($defaults);
 });
 ```
+
+For routines used in pipelines, it is important to return a `Runtime` context object. If a `Response` was returned, the pipeline would end prematurely (this might be desired in certain cases).
+
+A render calls with a pipeline could look like these:
+```php
+// calling a pipeline with 2 _pre-render_ routines and a registered render routine
+$container->get('view')
+    ->pipeline(':ClientModule', '--withUser--')
+    ->render($response, 'shopping-cart', $params);
+
+// rendering a file with a common _pre-render_ routine
+$container->get('view')
+    ->pipeline('--withUser--')
+    ->render($response, 'userProfile.latte', $params);
+```
+
+This way one can reuse a _pre-render_ routines across multiple templates that share a common setup.
+
+This kind of rendering could be compared to tagging or decorating a template before rendering.
 
 
 ## Resources

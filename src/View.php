@@ -8,7 +8,7 @@ use Latte\Engine;
 use LogicException;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class View
+class View implements Renderer
 {
     /** @var callable[] */
     private $routines = [];
@@ -38,22 +38,23 @@ class View
     function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
         // check for $target alias
-        $name = $this->getName($target);
+        $name = $this->getName($target) ?? $target;
 
         // check if a registered rendering routine exists
-        $routine = $this->getRoutine($name ?? $target) ?? $this->getDefaultRoutine();
+        $routine = $this->getRoutine($name) ?? $this->getDefaultRoutine();
 
         // a rendering routine exists, use it
         if ($routine !== null) {
-            new Runtime($this, $response, $latte, $params, $target);
-            return call_user_func($routine, $this, $response, $params, $latte, $name ?? $target, $target);
+            $context = new Runtime($this, $response, $target, $params, $latte);
+            return call_user_func($routine, $context, $name);
         }
 
         // no rendering routine exists, use the default one (needs an Engine instance)
-        if (!$latte instanceof Engine) {
+        $engine = $latte ?? $this->getEngine();
+        if (!$engine instanceof Engine) {
             throw new LogicException();
         }
-        return $this->respond($response, $latte, $name ?? $target, $params);
+        return $this->respond($response, $engine, $name, $params);
     }
 
 
@@ -74,6 +75,9 @@ class View
             if ($routine === null) {
                 $target = $name . ($name !== $key ? ' ' . $key : '');
                 throw new LogicException("Routine {$target} not registered.");
+            }
+            if (isset($queue[$name])) {
+                throw new LogicException("Duplicate routines '$name' in the pipeline.");
             }
             $queue[$name] = $routine;
         }

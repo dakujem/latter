@@ -5,16 +5,16 @@ namespace Dakujem\Latter;
 
 
 use Latte\Engine;
-use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ResponseInterface as Response;
 
 /**
- * Render runtime object.
+ * Render runtime context object.
  */
 class Runtime
 {
 
     /**
-     * @var ResponseInterface
+     * @var Response
      */
     private $response;
 
@@ -53,7 +53,7 @@ class Runtime
 
 
     /**
-     * @param ResponseInterface $response
+     * @param Response $response
      * @param View $view
      * @param Engine|null $engine
      * @param array $params
@@ -62,7 +62,7 @@ class Runtime
      */
     function __construct(
         View $view,
-        ResponseInterface $response,
+        Response $response,
         string $target,
         array $params = [],
         Engine $engine = null,
@@ -79,7 +79,7 @@ class Runtime
 
     static function i(
         View $view,
-        ResponseInterface $response,
+        Response $response,
         string $target,
         array $params = [],
         Engine $engine = null,
@@ -96,10 +96,68 @@ class Runtime
     }
 
 
+    function toResponse(
+        string $target = null,
+        array $params = null,
+        Engine $engine = null,
+        Response $response = null
+    ): Response {
+        return $this->getView()->respond(
+            $response ?? $this->getResponse(),
+            $engine ?? $this->getEngine(),
+            $target ?? $this->getTarget(),
+            $params ?? $this->getParams()
+        );
+    }
+
+
+    function move(
+        string $target = null,
+        array $params = null,
+        Engine $engine = null,
+        Response $response = null
+    ): self {
+        return new static(
+            $this->getView(),
+            $response ?? $this->getResponse(),
+            $target ?? $this->getTarget(),
+            $params ?? $this->getParams(),
+            $engine ?? $this->getEngine(),
+            ...$this->getMore()
+        );
+    }
+
+
+    function withParams(array $params): self
+    {
+        return new static(
+            $this->getView(),
+            $this->getResponse(),
+            $this->getTarget(),
+            $params,
+            $this->getEngine(),
+            ...$this->getMore()
+        );
+    }
+
+
+    function withTarget(string $target): self
+    {
+        return new static(
+            $this->getView(),
+            $this->getResponse(),
+            $target,
+            $this->getParams(),
+            $this->getEngine(),
+            ...$this->getMore()
+        );
+    }
+
+
     /**
-     * @return ResponseInterface
+     * @return Response
      */
-    function getResponse(): ResponseInterface
+    function getResponse(): Response
     {
         return $this->response;
     }
@@ -119,7 +177,7 @@ class Runtime
      */
     function getEngine(): ?Engine
     {
-        return $this->engine;
+        return $this->engine ?? $this->getView()->getEngine();
     }
 
 

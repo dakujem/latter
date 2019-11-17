@@ -1,6 +1,7 @@
 <?php
 
 
+use Dakujem\Latter\Runtime;
 use Dakujem\Latter\View;
 use Latte\Engine;
 use Latte\Loaders\FileLoader;
@@ -45,7 +46,13 @@ $container->set('view', function () use ($container) {
     $view->engine(function () use ($dic): Engine {
         return $dic->get('latte');
     });
-    $view->register('index.default', function (View $view, Response $response, array $params, ?Engine $latte, string $name) {
+    $view->register('index.default', function (
+        View $view,
+        Response $response,
+        array $params,
+        ?Engine $latte,
+        string $name
+    ) {
         // this is the place to register filters, variables and stuff for the template
         if ($latte === null) {
             // takto si mozem definovat ziskanie latte
@@ -66,13 +73,31 @@ $container->set('view', function () use ($container) {
         return $view->respond($response, $latte ?? $view->getEngine(), $template, $params);
     }, 'index'); // `index` is an optional alias for `index.default.latte`
 
+    $view->register('index.default', function (Runtime $context, string $name) {
+        // this is the place to register filters, variables and stuff for the template
+        $engine = $context->getEngine();
+
+        // na tomto mieste si mozem pre danu konkretnu sablonu:
+        // - mozem vytvorit novu instanciu Latte\Engine
+        // - registrovat filtre
+        // - registrovat makra
+        // - modifikovat aleboo pridat parametre alebo default hodnoty parametrov
+
+        // na tomto mieste je mozne riesit cestu k fyzickemu suboru sablony a podobne
+        $template = TEMPLATES . '/' . $name;
+        $template = 'index/default.latte';
+
+        // na tomto mieste sa mozem rozhodnut, ci pouzijem `respond` metodu alebo pouzijem vlastny sposob renderovania
+        return $context->toResponse($name, $params ?? null);
+    }, 'index'); // `index` is an optional alias for `index.default.latte`
+
 });
 
-
+/** @var View $view */
 $view = $container->get(View::class);
 $view->render($response, 'index', ['foo' => 'bar']); // latte engine nie je nutne poskytovat
 
-$view->pipeline('tag1', 'tag2')->render($response, 'index', ['foo' => 'bar']); // ->pipeline ->select ->as ->through ->thru
+$view->pipeline('routine1', 'routine2')->render($response, 'index', ['foo' => 'bar']); // ->pipeline ->select ->as ->through ->thru
 
 
 
