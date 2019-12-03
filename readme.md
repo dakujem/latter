@@ -11,7 +11,7 @@ The latter will provide him with utility and guidance when dealing with a multit
 
 Latter is a very flexible thin layer that can be tuned and tamed as one desires.
 
-> 💡 Check out the [Latte documentation](https://latte.nette.org/en/guide) to get fluent in Latte.
+> 📖 Check out the [Latte documentation](https://latte.nette.org/en/guide) to get fluent in Latte.
 
 
 ## Render Latte template to PSR-7 response
@@ -58,7 +58,7 @@ $container = new Dakujem\Sleeve();
 
 In most cases, a new `Latte\Engine` instance should be created for each template render. That is why a _factory_ service should be defined. That is, every time the service is requested from the service container, a new instance will be returned.
 
-> Check out the documentation for the container you are using to configure this step correctly.
+> 💡 Check out the documentation for the service container or framework you are using to configure this step correctly.
 
 ```php
 $container->set('latte', $container->factory(function () use ($container) {
@@ -76,9 +76,8 @@ $container->set('latte', $container->factory(function () use ($container) {
 ```
 
 The definition should contain:
-- installation of [filters](https://latte.nette.org/en/guide#toc-filters)
+- installation of common [filters](https://latte.nette.org/en/guide#toc-filters)
 - installation of [custom tags](https://latte.nette.org/en/guide#toc-user-defined-tags) (macros)
-- installation of providers
 - configuration of an appropriate Latte _loader_
 - any other `Latte\Engine` setup calls needed
 
@@ -91,7 +90,7 @@ Now every time we call `$container->get('latte')`, a new instance of a configure
     $container->get('latte')
 );
 ```
-Note that we no longer need to prefix the template name with a full path.
+Note that we no longer need to prefix the template name with a full path, because of the `FileLoader` configuration.
 
 
 > Tip
@@ -121,18 +120,24 @@ $container->set('view', function () use ($container) {
 });
 ```
 
+An instance of `Latter\View` will now be available in the service container:
+```php
+$view = $container->get('view');
+```
+
 If an engine factory is provided to the `View` service, it is possible to omit providing the `Engine` instance for each rendered template.
 ```php
 // the render calls have gotten much shorter:
-$container->get('view')->render($response, 'hello.latte', $params);
+$view->render($response, 'hello.latte', $params);
 ```
 
 The View service definition can contain these optional definitions:
 - template aliases
-- template render routines
+- render routines (template rendering)
+- render pipelines
 - engine factory
 - default parameters
-- engine decorator
+- default render routine
 
 Each of these are optional.
 
@@ -141,15 +146,15 @@ Each of these are optional.
 
 It is possible to create template aliases, so that the templates can be referred to using a different name.
 
-```
+```php
 $view->alias('hello.latte', 'hello');
 $view->alias('ClientModule/Index/default.latte', 'index');
 ```
 
 To render a template using its alias:
 ```php
-$container->get('view')->render($response, 'hello', $params);
-$container->get('view')->render($response, 'index', $params);
+$view->render($response, 'hello', $params);
+$view->render($response, 'index', $params);
 ```
 
 
@@ -200,7 +205,7 @@ $view->register('shopping-cart', function (Runtime $context, string $name) {
 
 One can render the routine exactly as he would render an alias:
 ```php
-$container->get('view')->render($response, 'shopping-cart', $params);
+$view->render($response, 'shopping-cart', $params);
 ```
 
 
@@ -255,24 +260,22 @@ For routines used in pipelines, it is important to return a `Runtime` context ob
 A render calls with a pipeline could look like these:
 ```php
 // calling a pipeline with 2 _pre-render_ routines and a registered render routine
-$container->get('view')
+$view
     ->pipeline(':ClientModule', '--withUser--')
     ->render($response, 'shopping-cart', $params);
 
 // rendering a file with a common _pre-render_ routine
-$container->get('view')
+$view
     ->pipeline('--withUser--')
     ->render($response, 'userProfile.latte', $params);
 ```
 
-This way one can reuse a _pre-render_ routines across multiple templates that share a common setup.
+This way one can reuse _pre-render_ routines across multiple templates that share a common setup or rendering logic.
 
 This kind of rendering could be compared to tagging or decorating a template before rendering.
 
 
-## Resources
+## Contributions
 
-- latte dox
-- slim dox
-- psr7
+... are welcome. 🍵
 
