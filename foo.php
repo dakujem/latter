@@ -1,6 +1,5 @@
 <?php
 
-
 use Dakujem\Latter\Runtime;
 use Dakujem\Latter\View;
 use Latte\Engine;
@@ -40,11 +39,12 @@ $container->set('view', function () use ($container) {
     $defaultParams = [
         'projectName' => 'My Awesome Project',
     ];
-    $view = new View($defaultParams);
+    $view = new View();
+    $view->setParams($defaultParams);
 
     // optionally set an engine factory
-    $view->engine(function () use ($dic): Engine {
-        return $dic->get('latte');
+    $view->setEngine(function () use ($container): Engine {
+        return $container->get('latte');
     });
     $view->register('index.default', function (
         View $view,
@@ -100,7 +100,16 @@ $view->render($response, 'index', ['foo' => 'bar']); // latte engine nie je nutn
 $view->pipeline('routine1', 'routine2')->render($response, 'index', ['foo' => 'bar']); // ->pipeline ->select ->as ->through ->thru
 
 
+// TODO nie je mozne pokryt stav, kedy chcem pajplajnu invokovat uz v render rutine
 
+$view->register('fooo', function(Runtime $context, string $name){
+    $response = $context->getView()->pipeline('a','b')->invoke();
+//    if instnacneof Runtime .... elsif Response return
+});
+
+
+// TODO (2) nie je pokryty pripad, kedy chcem mat default rutinu ako "pre-render" (t.j. vracia context alebo nic)
+//      -----> toto asi nie je uplne prinosne, pretoze default rutina moze proste zavolat $context->toResponse()
 
 
 

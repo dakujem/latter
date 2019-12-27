@@ -38,22 +38,6 @@ class View implements Renderer
      */
     public function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
-        return $this->respond(...$this->prepareRenderingArguments($response, $target, $params, $latte));
-    }
-
-
-    /**
-     * Prepare arguments for template rendering.
-     * This method is provided for convenience when creating custom rendering techniques.
-     *
-     * @param Response    $response
-     * @param string      $target
-     * @param array       $params
-     * @param Engine|null $latte
-     * @return array arguments for the `respond` method
-     */
-    public function prepareRenderingArguments(Response $response, string $target, array $params = [], Engine $latte = null): array
-    {
         // check for $target alias
         $name = $this->getName($target) ?? $target;
 
@@ -71,7 +55,7 @@ class View implements Renderer
         if (!$engine instanceof Engine) {
             throw new LogicException();
         }
-        return [$response, $engine, $name, $params];
+        return $this->respond($response, $engine, $name, $params);
     }
 
 
