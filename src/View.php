@@ -1,41 +1,58 @@
 <?php
 
-
 namespace Dakujem\Latter;
-
 
 use Latte\Engine;
 use LogicException;
 use Psr\Http\Message\ResponseInterface as Response;
 
+/**
+ * The standard Latter renderer.
+ */
 class View implements Renderer
 {
     /** @var callable[] */
-    private $routines = [];
-
-    /** @var callable|null */
-    private $defaultRoutine = null;
-
-    /** @var array */
-    private $defaultParams = [];
-
-    /** @var callable|null function():Engine */
-    private $engine = null;
+    protected $routines = [];
 
     /** @var string[] */
-    private $aliases = [];
+    protected $aliases = [];
 
     /** @var callable|null */
-    private $decorator = null;
+    protected $defaultRoutine = null;
+
+    /** @var array */
+    protected $defaultParams = [];
+
+    /** @var callable|null function():Engine */
+    protected $engine = null;
 
 
-    function __construct(array $defaultParams = [])
+    /**
+     * Prepare and render a target template into a response body.
+     *
+     * @param Response    $response
+     * @param string      $target
+     * @param array       $params
+     * @param Engine|null $latte
+     * @return Response
+     */
+    public function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
-        $this->defaultParams = $defaultParams;
+        return $this->respond(...$this->prepareRenderingArguments($response, $target, $params, $latte));
     }
 
 
-    function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
+    /**
+     * Prepare arguments for template rendering.
+     * This method is provided for convenience when creating custom rendering techniques.
+     *
+     * @param Response    $response
+     * @param string      $target
+     * @param array       $params
+     * @param Engine|null $latte
+     * @return array arguments for the `respond` method
+     */
+    public function prepareRenderingArguments(Response $response, string $target, array $params = [], Engine $latte = null): array
     {
         // check for $target alias
         $name = $this->getName($target) ?? $target;
@@ -54,11 +71,21 @@ class View implements Renderer
         if (!$engine instanceof Engine) {
             throw new LogicException();
         }
-        return $this->respond($response, $engine, $name, $params);
+        return [$response, $engine, $name, $params];
     }
 
 
-    function respond(Response $response, Engine $latte, string $template, array $params): Response
+    /**
+     * Render a given template to into a response body.
+     * This is the default rendering process.
+     *
+     * @param Response $response
+     * @param Engine   $latte
+     * @param string   $template
+     * @param array    $params
+     * @return Response
+     */
+    public function respond(Response $response, Engine $latte, string $template, array $params): Response
     {
         $content = $latte->renderToString($template, array_merge($this->getDefaultParams(), $params));
         $response->getBody()->write($content);
@@ -66,7 +93,13 @@ class View implements Renderer
     }
 
 
-    function pipeline(...$routines): Pipeline
+    /**
+     * Create a rendering pipeline from given routine names.
+     *
+     * @param string[] ...$routines
+     * @return Pipeline
+     */
+    public function pipeline(...$routines): Pipeline
     {
         $queue = [];
         foreach ($routines as $key) {
@@ -85,7 +118,26 @@ class View implements Renderer
     }
 
 
-    function register(string $name, callable $routine, string $alias = null): self
+    /**
+     * Register a render routine (or a pipeline pre-render routine).
+     *
+     * Routine signature:
+     *      function(
+     *          Dakujem\Latter\Runtime  $runtime,
+     *          string                  $name,    // name under which the routine is registered
+     *      ): Psr\Http\Message\ResponseInterface|Dakujem\Latter\Runtime|void
+     *
+     * A render routine must return a ResponseInterface implementation.
+     * A pre-render routine used in pipelines may return a Runtime object, in which case it is passed
+     * to the next routine in the pipeline. If a ResponseInterface implementation is returned,
+     * the pipeline ends and the response is used.
+     *
+     * @param string      $name
+     * @param callable    $routine
+     * @param string|null $alias
+     * @return $this
+     */
+    public function register(string $name, callable $routine, string $alias = null): self
     {
         $this->routines[$name] = $routine;
         $alias !== null && $this->alias($name, $alias);
@@ -93,59 +145,100 @@ class View implements Renderer
     }
 
 
-    function defaultRoutine(callable $routine = null): self
+    /**
+     * Register a default/fallback routine to be used when rendering a template
+     * for which no routine has been registered. The callable has the same signature as a normal render routine.
+     *
+     * @param callable|null $routine
+     * @return $this
+     */
+    public function registerDefault(callable $routine = null): self
     {
         $this->defaultRoutine = $routine;
         return $this;
     }
 
 
-    function alias(string $name, string $alias): self
+    /**
+     * Ads an alias.
+     *
+     * @param string $name
+     * @param string $alias
+     * @return $this
+     */
+    public function alias(string $name, string $alias): self
     {
         $this->aliases[$alias] = $name;
         return $this;
     }
 
 
-    function param(string $name, $value): self
+    /**
+     * Set a single default rendering parameter.
+     *
+     * @param string $name
+     * @param mixed  $value
+     * @return $this
+     */
+    public function setParam(string $name, $value): self
     {
         $this->defaultParams[$name] = $value;
         return $this;
     }
 
 
-    function engine(callable $provider): self
+    /**
+     * Set all default rendering parameters.
+     * Note: Will overwrite previously set parameters.
+     *
+     * @param array $params
+     * @return $this
+     */
+    public function setParams(array $params): self
+    {
+        $this->defaultParams = $params;
+        return $this;
+    }
+
+
+    /**
+     * Set Latte engine to be used.
+     *
+     * @param callable $provider
+     * @return $this
+     */
+    public function setEngine(callable $provider): self
     {
         $this->engine = $provider;
         return $this;
     }
 
 
-    function getRoutine(string $name): ?callable
+    public function getRoutine(string $name): ?callable
     {
         return $this->routines[$name] ?? null;
     }
 
 
-    function getDefaultRoutine(): ?callable
+    public function getDefaultRoutine(): ?callable
     {
         return $this->defaultRoutine;
     }
 
 
-    function getName(string $target): ?string
+    public function getName(string $target): ?string
     {
         return $this->aliases[$target] ?? null;
     }
 
 
-    function getDefaultParams(): array
+    public function getDefaultParams(): array
     {
         return $this->defaultParams;
     }
 
 
-    function getEngine(): ?Engine
+    public function getEngine(): ?Engine
     {
         return $this->engine ? call_user_func($this->engine) : null;
     }

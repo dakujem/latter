@@ -112,7 +112,7 @@ $container->set('view', function () use ($container) {
     $view = new Dakujem\Latter\View($defaultParams);
 
     // optionally set an engine factory
-    $view->engine(function () use ($container): Latte\Engine {
+    $view->setEngine(function () use ($container): Latte\Engine {
         return $container->get('latte');
     });
 
@@ -174,7 +174,7 @@ A render routine is a _callable_ that receives a `Runtime` context object and re
 function(
     Dakujem\Latter\Runtime  $runtime,
     string                  $name,    // name under which the routine is registered
-): Psr\Http\Message\ResponseInterface|Dakujem\Latter\Runtime
+): Psr\Http\Message\ResponseInterface|Dakujem\Latter\Runtime|void
 ```
 
 > Note that the callable can also return a `Runtime` context object, this scenario will be described later (see render pipelines).
@@ -214,7 +214,7 @@ $view->render($response, 'shopping-cart', $params);
 
 You may optionally specify a default render routine, that will be used for all non-specified templates.
 ```php
-$view->defaultRoutine( $routine );
+$view->registerDefault( $routine );
 ```
 The default render routine call has exactly the same signature as the named ones.
 
@@ -231,10 +231,9 @@ Default parameters are merged with the parameters provided to each render call.
 If one wants to define per-template default parameters, render routines can be used.
 
 ```php
-$view->default('username', 'Guest');
+$view->setParam('username', 'Guest');      // a single parameter
+$view->setParams(['username' => 'Guest']); // all parameters
 ```
-
-Default parameters can also be passed in bulk to the `View`'s constructor.
 
 
 ### Render pipelines

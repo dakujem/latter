@@ -53,12 +53,12 @@ class Runtime
 
 
     /**
-     * @param Response $response
-     * @param View $view
+     * @param Response    $response
+     * @param View        $view
      * @param Engine|null $engine
-     * @param array $params
-     * @param string $target
-     * @param $more
+     * @param array       $params
+     * @param string      $target
+     * @param mixed       ...$more
      */
     function __construct(
         View $view,
@@ -67,7 +67,8 @@ class Runtime
         array $params = [],
         Engine $engine = null,
         ...$more
-    ) {
+    )
+    {
         $this->view = $view;
         $this->response = $response;
         $this->target = $target;
@@ -77,6 +78,17 @@ class Runtime
     }
 
 
+    /**
+     * Static factory.
+     *
+     * @param View        $view
+     * @param Response    $response
+     * @param string      $target
+     * @param array       $params
+     * @param Engine|null $engine
+     * @param mixed       ...$more
+     * @return static
+     */
     static function i(
         View $view,
         Response $response,
@@ -84,7 +96,8 @@ class Runtime
         array $params = [],
         Engine $engine = null,
         ...$more
-    ): self {
+    ): self
+    {
         return new static(
             $view,
             $response,
@@ -96,12 +109,22 @@ class Runtime
     }
 
 
+    /**
+     * Render the target into a response body using the internal View instance.
+     *
+     * @param string|null   $target
+     * @param array|null    $params
+     * @param Engine|null   $engine
+     * @param Response|null $response
+     * @return Response
+     */
     function toResponse(
         string $target = null,
         array $params = null,
         Engine $engine = null,
         Response $response = null
-    ): Response {
+    ): Response
+    {
         return $this->getView()->respond(
             $response ?? $this->getResponse(),
             $engine ?? $this->getEngine(),

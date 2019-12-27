@@ -9,9 +9,9 @@ use Psr\Http\Message\ResponseInterface as Response;
 use RuntimeException;
 
 /**
- * Pipeline
+ * A pipeline renderer.
  */
-class Pipeline implements Renderer
+final class Pipeline implements Renderer
 {
     /** @var View */
     private $view;
@@ -31,7 +31,7 @@ class Pipeline implements Renderer
     }
 
 
-    function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
+    public function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
         $name = $this->view->getName($target) ?? $target;
         $routines = $this->queue;
@@ -51,7 +51,7 @@ class Pipeline implements Renderer
     }
 
 
-    protected function execute(array $routines, $context): Response
+    private function execute(array $routines, $context): Response
     {
         foreach ($routines as $name => $routine) {
             $result = call_user_func($routine, $context, $name);
