@@ -1,15 +1,16 @@
 # Latter
 
-> ☝️ it's not a typo
->
-> 💿 `composer require dakujem/latter`
-
 **Latte view layer for PSR-7 frameworks and stacks.**
 
-If one wants to use the awesome [Latte templating language](https://latte.nette.org/en/) with a PSR-7 compliant framework like [Slim](https://www.slimframework.com/), one can either do all the setup by himself or use _Latter_.\
-The latter will provide him with utility and guidance when dealing with a multitude of templates reducing code repetition.
+> 💿 `composer require dakujem/latter`
 
-Latter is a very flexible thin layer that can be tuned and tamed as one desires.
+To use the awesome [Latte templating language](https://latte.nette.org/en/) with a PSR-7 compliant framework like [Slim](https://www.slimframework.com/), one can either struggle to set everything up by himself or use _Latter_.\
+The latter will reduce setup friction and provide utility.
+
+Latter
+- is designed to reduce code repetition (render pipelines, render routines)
+- reduces setup friction (set up once and forget)
+- is a flexible thin layer that can be tuned and tamed as one desires
 
 > 📖 Check out the [Latte documentation](https://latte.nette.org/en/guide) to get fluent in Latte.
 
@@ -92,12 +93,11 @@ Now every time we call `$container->get('latte')`, a new instance of a configure
 ```
 Note that we no longer need to prefix the template name with a full path, because of the `FileLoader` configuration.
 
-
 > Tip
 >
 > To slightly improve performance on production servers, auto-refresh can be turned off in the Engine factory:\
 > `$engine->setAutoRefresh($container->settings['dev'] ?? true);`\
-> This has its caveats, read the docs beforehand.
+> This has its caveats, read the Latte docs beforehand.
 
 
 ## Configure Latter\View service
@@ -161,6 +161,7 @@ $view->render($response, 'index', $params);
 ### Render routines
 
 Render routines should be used to apply template-specific setup without the need for code repetition.
+
 They may be used to
 - define filters
 - define tags (macros)
@@ -176,7 +177,7 @@ function(
 ): Psr\Http\Message\ResponseInterface|Dakujem\Latter\Runtime
 ```
 
-> Note that the callable can also return a Runtime context object, this scenario will be described later.
+> Note that the callable can also return a `Runtime` context object, this scenario will be described later (see render pipelines).
 
 Example:
 ```php
@@ -217,6 +218,11 @@ $view->defaultRoutine( $routine );
 ```
 The default render routine call has exactly the same signature as the named ones.
 
+It will be used when rendering a template that has not been registered.
+```php
+$view->render($response, 'a-template-with-no-registered-routine-nor-alias', $params);
+```
+
 
 ### Default parameters
 
@@ -233,7 +239,9 @@ Default parameters can also be passed in bulk to the `View`'s constructor.
 
 ### Render pipelines
 
-If a group of templates share a common setup that needs to be performed on each of them to be rendered, pipelines can be used. Pipelines allow multiple _pre-render_ routines to be called one after another before rendering a response.
+If a group of templates share a common setup that needs to be performed on each of them to be rendered or share common variables or filters, pipelines can be used. The most obvious case is using [layouts](https://latte.nette.org/en/tags#toc-template-expansion-inheritance) or common [file](https://latte.nette.org/en/tags#toc-file-including) / [block](https://latte.nette.org/en/tags#toc-block-including) includes.
+
+Pipelines allow multiple _pre-render_ routines to be called one after another before rendering a response.
 
 First, appropriate render routines have to be registered:
 ```php
@@ -247,7 +255,7 @@ $view->register(':ClientModule', function (Runtime $context, string $name) {
 $view->register('--withUser--', function (Runtime $context, string $name) {
     // do setup common for templates using a `$user` variable
     $defaults = [
-        'user' => get_user( 'somehow' );
+        'user' => get_user( 'somehow' ),
     ];
 
     // return a context object (!)
@@ -255,7 +263,7 @@ $view->register('--withUser--', function (Runtime $context, string $name) {
 });
 ```
 
-For routines used in pipelines, it is important to return a `Runtime` context object. If a `Response` was returned, the pipeline would end prematurely (this might be desired in certain cases).
+For pre-render routines used in pipelines, it is important to return a `Runtime` context object. If a `Response` was returned, the pipeline would end prematurely (this might be desired in certain cases).
 
 A render calls with a pipeline could look like these:
 ```php
@@ -271,6 +279,26 @@ $view
 ```
 
 This way one can reuse _pre-render_ routines across multiple templates that share a common setup or rendering logic.
+
+Pipelines are particularly useful when dealing with included templates (header, footer) or layout templates that require specific variables or filters to render.\
+Example:
+```latte
+{*} home.latte {*}
+{layout 'base.latte'}
+{block #content}
+<p>Greetings, stranger!</p>
+```
+```latte
+{*} about.latte {*}
+{layout 'base.latte'}
+{block #content}
+<p>Stay awhile and listen.</p>
+```
+Both the above share the same layout, that needs specific setup done in the `'base-layout'` pre-render routine:
+```php
+$view->pipeline('base-layout')->render($response, 'home.latte');
+$view->pipeline('base-layout')->render($response, 'about.latte');
+```
 
 This kind of rendering could be compared to tagging or decorating a template before rendering.
 
