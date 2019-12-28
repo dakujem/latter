@@ -106,6 +106,14 @@ $view->register('fooo', function(Runtime $context, string $name){
     $response = $context->getView()->pipeline('a','b')->invoke();
 //    if instnacneof Runtime .... elsif Response return
 });
+$view->register('fooo', $view->pipeline('a','b', function(Runtime $context){
+//    ...
+}));
+$view->register('fooo', function(Runtime $context, string $name){
+    return call_user_func($context->getView()->pipeline('a','b', function(Runtime $context, string $name){
+        // ...
+    }), $context, $name);
+});
 
 
 // TODO (2) nie je pokryty pripad, kedy chcem mat default rutinu ako "pre-render" (t.j. vracia context alebo nic)

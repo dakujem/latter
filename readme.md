@@ -170,18 +170,13 @@ They may be used to
 - or even to use a completely different Engine instance or render own Response
 
 A render routine is a _callable_ that receives a `Runtime` context object and returns a _response_, with the following signature:
+```php
+function(Dakujem\Latter\Runtime $runtime): Psr\Http\Message\ResponseInterface
 ```
-function(
-    Dakujem\Latter\Runtime  $runtime,
-    string                  $name,    // name under which the routine is registered
-): Psr\Http\Message\ResponseInterface|Dakujem\Latter\Runtime|void
-```
-
-> Note that the callable can also return a `Runtime` context object, this scenario will be described later (see render pipelines).
 
 Example:
 ```php
-$view->register('shopping-cart', function (Runtime $context, string $name) {
+$view->register('shopping-cart', function (Runtime $context) {
     // This callable is the place to register filters,
     // variables and stuff for template named "shopping-cart"
 
@@ -242,16 +237,16 @@ If a group of templates share a common setup that needs to be performed on each 
 
 Pipelines allow multiple _pre-render_ routines to be called one after another before rendering a response.
 
-First, appropriate render routines have to be registered:
+First, appropriate pre-render routines have to be registered:
 ```php
-$view->register(':ClientModule', function (Runtime $context, string $name) {
+$view->register(':ClientModule', function (Runtime $context) {
     // do setup needed for templates in the client module
     $context->getEngine()->addFilter( ... );
     
     // return a context object (!)
     return $context;
 });
-$view->register('--withUser--', function (Runtime $context, string $name) {
+$view->register('--withUser--', function (Runtime $context) {
     // do setup common for templates using a `$user` variable
     $defaults = [
         'user' => get_user( 'somehow' ),
@@ -262,7 +257,7 @@ $view->register('--withUser--', function (Runtime $context, string $name) {
 });
 ```
 
-For pre-render routines used in pipelines, it is important to return a `Runtime` context object. If a `Response` was returned, the pipeline would end prematurely (this might be desired in certain cases).
+For pre-render routines used in pipelines, it is important to return a `Runtime` context object. If a `Response` was returned, the pipeline would end prematurely (this might be desired in certain cases though). Return value of any other kind is ignored.
 
 A render calls with a pipeline could look like these:
 ```php
@@ -300,6 +295,14 @@ $view->pipeline('base-layout')->render($response, 'about.latte');
 ```
 
 This kind of rendering could be compared to tagging or decorating a template before rendering.
+
+Alternatively, it is also possible to define the pipeline as a part of the rendering routine:
+```php
+$view->register('contacts-page', $view->pipeline('base-layout', function (Runtime $context) {
+    // ... do whatever setup needed for rendering the contacts page
+    return $context->toResponse( ... );
+}));
+```
 
 
 ## Contributions

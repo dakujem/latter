@@ -78,20 +78,27 @@ class View implements Renderer
 
 
     /**
-     * Create a rendering pipeline from given routine names.
+     * Create a rendering pipeline from registered routine names or callable routines.
      *
-     * @param string[] ...$routines
+     * @param array ...$routines
      * @return Pipeline
      */
     public function pipeline(...$routines): Pipeline
     {
         $queue = [];
         foreach ($routines as $key) {
-            $name = $this->getName($key) ?? $key;
-            $routine = $this->getRoutine($name);
-            if ($routine === null) {
-                $target = $name . ($name !== $key ? ' ' . $key : '');
-                throw new LogicException("Routine {$target} not registered.");
+            if (is_string($key)) {
+                $name = $this->getName($key) ?? $key;
+                $routine = $this->getRoutine($name);
+                if ($routine === null) {
+                    $target = $name . ($name !== $key ? ' ' . $key : '');
+                    throw new LogicException("Routine {$target} not registered.");
+                }
+            } elseif (is_callable($key)) {
+                $routine = $key;
+                $name = is_object($routine) ? spl_object_hash($routine) : md5(serialize($routine));
+            } else {
+                throw new LogicException('Invalid routine type. Please provide a routine name or a callable.');
             }
             if (isset($queue[$name])) {
                 throw new LogicException("Duplicate routines '$name' in the pipeline.");
@@ -119,7 +126,7 @@ class View implements Renderer
      * @param string      $name
      * @param callable    $routine
      * @param string|null $alias
-     * @return $this
+     * @return self
      */
     public function register(string $name, callable $routine, string $alias = null): self
     {
@@ -134,7 +141,7 @@ class View implements Renderer
      * for which no routine has been registered. The callable has the same signature as a normal render routine.
      *
      * @param callable|null $routine
-     * @return $this
+     * @return self
      */
     public function registerDefault(callable $routine = null): self
     {
@@ -148,7 +155,7 @@ class View implements Renderer
      *
      * @param string $name
      * @param string $alias
-     * @return $this
+     * @return self
      */
     public function alias(string $name, string $alias): self
     {
@@ -162,7 +169,7 @@ class View implements Renderer
      *
      * @param string $name
      * @param mixed  $value
-     * @return $this
+     * @return self
      */
     public function setParam(string $name, $value): self
     {
@@ -176,7 +183,7 @@ class View implements Renderer
      * Note: Will overwrite previously set parameters.
      *
      * @param array $params
-     * @return $this
+     * @return self
      */
     public function setParams(array $params): self
     {
@@ -189,7 +196,7 @@ class View implements Renderer
      * Set Latte engine to be used.
      *
      * @param callable $provider
-     * @return $this
+     * @return self
      */
     public function setEngine(callable $provider): self
     {

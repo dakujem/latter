@@ -21,13 +21,19 @@ final class Pipeline implements Renderer
 
 
     /**
-     * @param View $view
+     * @param View       $view
      * @param callable[] $queue
      */
     function __construct(View $view, array $queue)
     {
         $this->view = $view;
         $this->queue = $queue;
+    }
+
+
+    public function __invoke(Runtime $context): Response
+    {
+        return static::execute($this->queue, $context);
     }
 
 
@@ -47,11 +53,11 @@ final class Pipeline implements Renderer
             );
         };
         $context = new Runtime($this->view, $response, $target, $params, $latte);
-        return $this->execute($routines, $context);
+        return static::execute($routines, $context);
     }
 
 
-    private function execute(array $routines, $context): Response
+    private static function execute(array $routines, Runtime $context): Response
     {
         foreach ($routines as $name => $routine) {
             $result = call_user_func($routine, $context, $name);
