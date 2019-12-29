@@ -106,10 +106,7 @@ Now let's define a `Latter\View` service.
 
 ```php
 $container->set('view', function () use ($container) {
-    $defaultParams = [
-        'projectName' => 'My Awesome Project',
-    ];
-    $view = new Dakujem\Latter\View($defaultParams);
+    $view = new Dakujem\Latter\View();
 
     // optionally set an engine factory
     $view->setEngine(function () use ($container): Latte\Engine {
@@ -127,15 +124,15 @@ $view = $container->get('view');
 
 If an engine factory is provided to the `View` service, it is possible to omit providing the `Engine` instance for each rendered template.
 ```php
-// the render calls have gotten much shorter:
+// the render calls have gotten shorter:
 $view->render($response, 'hello.latte', $params);
 ```
 
-The View service definition can contain these optional definitions:
+The `View` service definition can contain these optional definitions:
 - template aliases
 - render routines (template rendering)
 - render pipelines
-- engine factory
+- engine factory (recommended)
 - default parameters
 - default render routine
 
@@ -226,8 +223,11 @@ Default parameters are merged with the parameters provided to each render call.
 If one wants to define per-template default parameters, render routines can be used.
 
 ```php
-$view->setParam('username', 'Guest');      // a single parameter
-$view->setParams(['username' => 'Guest']); // all parameters
+$view->setParam('userName', 'Guest');      // a single parameter
+$view->setParams([
+    'userName' => 'Guest',
+    'projectName' => 'My Awesome Project',
+]); // all parameters at once
 ```
 
 

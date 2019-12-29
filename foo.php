@@ -73,7 +73,7 @@ $container->set('view', function () use ($container) {
         return $view->respond($response, $latte ?? $view->getEngine(), $template, $params);
     }, 'index'); // `index` is an optional alias for `index.default.latte`
 
-    $view->register('index.default', function (Runtime $context, string $name) {
+    $view->register('index.default', $view->response(function (Runtime $context, string $name) {
         // this is the place to register filters, variables and stuff for the template
         $engine = $context->getEngine();
 
@@ -88,8 +88,8 @@ $container->set('view', function () use ($container) {
         $template = 'index/default.latte';
 
         // na tomto mieste sa mozem rozhodnut, ci pouzijem `respond` metodu alebo pouzijem vlastny sposob renderovania
-        return $context->toResponse($name, $params ?? null);
-    }, 'index'); // `index` is an optional alias for `index.default.latte`
+        return $context->withTarget($name)->withParams($params ?? []);
+    }), 'index'); // `index` is an optional alias for `index.default.latte`
 
 });
 

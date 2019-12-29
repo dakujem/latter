@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Dakujem\Latter;
-
 
 use Latte\Engine;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -10,7 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 /**
  * Render runtime context object.
  */
-class Runtime
+final class Runtime
 {
 
     /**
@@ -61,7 +59,7 @@ class Runtime
      * @param mixed       ...$more
      */
     function __construct(
-        View $view,
+//        View $view,
         Response $response,
         string $target,
         array $params = [],
@@ -69,7 +67,7 @@ class Runtime
         ...$more
     )
     {
-        $this->view = $view;
+//        $this->view = $view;
         $this->response = $response;
         $this->target = $target;
         $this->params = $params;
@@ -90,7 +88,7 @@ class Runtime
      * @return static
      */
     static function i(
-        View $view,
+//        View $view,
         Response $response,
         string $target,
         array $params = [],
@@ -99,7 +97,7 @@ class Runtime
     ): self
     {
         return new static(
-            $view,
+//            $view,
             $response,
             $target,
             $params,
@@ -108,36 +106,36 @@ class Runtime
         );
     }
 
-
-    /**
-     * Render the target into a response body using the internal View instance.
-     *
-     * @param string|null   $target
-     * @param array|null    $params
-     * @param Engine|null   $engine
-     * @param Response|null $response
-     * @return Response
-     */
-    function toResponse(
-        string $target = null,
-        array $params = null,
-        Engine $engine = null,
-        Response $response = null
-    ): Response
-    {
-        return $this->getView()->respond(
-            $response ?? $this->getResponse(),
-            $engine ?? $this->getEngine(),
-            $target ?? $this->getTarget(),
-            $params ?? $this->getParams()
-        );
-    }
+//
+//    /**
+//     * Render the target into a response body using the internal View instance.
+//     *
+//     * @param string|null   $target
+//     * @param array|null    $params
+//     * @param Engine|null   $engine
+//     * @param Response|null $response
+//     * @return Response
+//     */
+//    function toResponse(
+//        string $target = null,
+//        array $params = null,
+//        Engine $engine = null,
+//        Response $response = null
+//    ): Response
+//    {
+//        return $this->getView()->respond(
+//            $response ?? $this->getResponse(),
+//            $engine ?? $this->getEngine(),
+//            $target ?? $this->getTarget(),
+//            $params ?? $this->getParams()
+//        );
+//    }
 
 
     function withParams(array $params): self
     {
         return new static(
-            $this->view,
+//            $this->view,
             $this->response,
             $this->target,
             $params,
@@ -147,10 +145,22 @@ class Runtime
     }
 
 
+    function withParam(string $name, $value): self
+    {
+        return new static(
+            $this->response,
+            $this->target,
+            array_merge($this->params, [$name => $value]),
+            $this->engine,
+            ...$this->more
+        );
+    }
+
+
     function withTarget(string $target): self
     {
         return new static(
-            $this->view,
+//            $this->view,
             $this->response,
             $target,
             $this->params,
@@ -167,15 +177,15 @@ class Runtime
     {
         return $this->response;
     }
-
-
-    /**
-     * @return View
-     */
-    function getView(): View
-    {
-        return $this->view;
-    }
+//
+//
+//    /**
+//     * @return View
+//     */
+//    function getView(): View
+//    {
+//        return $this->view;
+//    }
 
 
     /**
@@ -183,7 +193,7 @@ class Runtime
      */
     function getEngine(): ?Engine
     {
-        return $this->engine ?? $this->getView()->getEngine();
+        return $this->engine;
     }
 
 
@@ -197,9 +207,9 @@ class Runtime
 
 
     /**
-     * @return string|null
+     * @return string
      */
-    function getTarget(): ?string
+    function getTarget(): string
     {
         return $this->target;
     }
