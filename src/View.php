@@ -163,7 +163,7 @@ class View implements Renderer
     public function register(string $name, callable $routine, string $alias = null): self
     {
         $this->routines[$name] = $routine;
-        $alias !== null && $this->alias($name, $alias);
+        $alias !== null && $this->alias($alias, $name);
         return $this;
     }
 
@@ -184,20 +184,33 @@ class View implements Renderer
 
     /**
      * Ads an alias.
+     * @deprecated brØken
      *
      * @param string $name  the name of the template or the rendering routine
      * @param string $alias an alias that can be used to render the template
      * @return self
      */
-    public function alias(string $name, string $alias): self
+    public function alias__broken(string $name, string $alias): self
     {
-        // todo aliases cause trouble with $name
+        // todo aliases cause trouble with $name. Aliases are brØken.
         $this->aliases[$alias] = $name;
         return $this;
+    }
 
-        // alternative to aliases
-        $routine = function (Runtime $context) use ($alias) {
-            return $context->withTarget($alias);
+
+    /**
+     * Ads a template alias.
+     *
+     * This is a shorthand method to register a routine that will switch the rendering target once invoked.
+     *
+     * @param string $name   the alias name
+     * @param string $target a target to be rendered when using the alias
+     * @return self
+     */
+    public function alias(string $name, string $target): self
+    {
+        $routine = function (Runtime $context) use ($target) {
+            return $context->withTarget($target);
         };
         return $this->register($name, $routine);
     }

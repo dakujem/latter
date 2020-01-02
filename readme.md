@@ -144,8 +144,8 @@ Each of these are optional.
 It is possible to create template aliases, so that the templates can be referred to using a different name.
 
 ```php
-$view->alias('hello.latte', 'hello');
-$view->alias('ClientModule/Index/default.latte', 'index');
+$view->alias('hello', 'hello.latte');
+$view->alias('index', 'ClientModule/Index/default.latte');
 ```
 
 To render a template using its alias:

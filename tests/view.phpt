@@ -203,11 +203,21 @@ class ViewTest extends TestCase
 
         // sanity test (rendering should fail)
         Assert::exception(function () use ($v) {
-            $v->render($this->response(), 'hello', [], $this->latte());
+            $v->render($this->response(), 'foo', [], $this->latte());
         }, RuntimeException::class);
 
+        // rendering 'foo' will render 'hello.latte'
+        $v->alias('foo', 'hello.latte');
+
         // render using an alias
-        $this->assert('hello world', 'hello.latte', [], $v);
+        $this->assert('hello world', 'foo', [], $v);
+
+//        // rendering 'bar' will render 'hello', that will in turn render 'hello.latte'
+//        $v->alias('bar', 'hello');
+//        $v->alias('hello', 'hello.latte');
+//
+//        // render using an alias
+//        $this->assert('hello world', 'bar', [], $v);
     }
 
 
