@@ -212,12 +212,39 @@ class ViewTest extends TestCase
         // render using an alias
         $this->assert('hello world', 'foo', [], $v);
 
-//        // rendering 'bar' will render 'hello', that will in turn render 'hello.latte'
-//        $v->alias('bar', 'hello');
-//        $v->alias('hello', 'hello.latte');
-//
-//        // render using an alias
-//        $this->assert('hello world', 'bar', [], $v);
+        // rendering 'bar' will render 'next',
+        // that will try to render 'foo' (registered above),
+        // that will in turn render 'hello.latte'
+        $v->alias('bar', 'next');
+        $v->alias('next', 'foo');
+
+        // render using an aliases (all 3 should work and result in the same output)
+        $this->assert('hello world', 'bar', [], $v);
+        $this->assert('hello world', 'next', [], $v);
+    }
+
+
+    public function testRoutineAliases()
+    {
+        $v = $this->view();
+
+        // sanity test (rendering should fail)
+        Assert::exception(function () use ($v) {
+            $v->render($this->response(), 'foo', [], $this->latte());
+        }, RuntimeException::class);
+
+        // register a rendering routine with an alias 'foo'
+        $v->register('template', function (Runtime $context) {
+            return $context->withParams(['name' => 'Uncle Bob'])->withTarget('name.latte');
+        }, 'foo');
+
+        // register another alias 'bar'
+        $v->alias('bar', 'template');
+
+        // render using both the routine and the alias
+        $this->assert('hello Uncle Bob', 'template', [], $v);
+        $this->assert('hello Uncle Bob', 'foo', [], $v);
+        $this->assert('hello Uncle Bob', 'bar', [], $v);
     }
 
 
@@ -231,8 +258,8 @@ class ViewTest extends TestCase
         }, RuntimeException::class);
 
         // register a default routine that will add '.latte' suffix to rendering targets and set the `name` parameter
-        $v->registerDefault(function(Runtime $context){
-            return $context->withTarget($context->getTarget().'.latte')->withParam('name', 'Foobar');
+        $v->registerDefault(function (Runtime $context) {
+            return $context->withTarget($context->getTarget() . '.latte')->withParam('name', 'Foobar');
         });
 
         // render using an alias
@@ -241,21 +268,111 @@ class ViewTest extends TestCase
     }
 
 
-    public function not__working___testChaining()
+    public function testDefaultRoutineNotInvoked()
     {
         $v = $this->view();
 
-        // sanity test (rendering should fail)
+        // register a default routine
+        $v->registerDefault(function () {
+            throw new LogicException('This should never be reached.');
+        });
+
+        // the default will be called, because 'hello' routine does not exist
         Assert::exception(function () use ($v) {
-            $v->render($this->response(), 'foo', [], $this->latte());
-        }, RuntimeException::class);
+            $v->render($this->response(), 'hello', [], $this->latte());
+        }, LogicException::class);
+
+        // this time neither using the routine nor the alias of the routine will invoke the default routine
+        $v->register('hello', function (Runtime $context) {
+            return $context->withTarget('hello.latte');
+        }, 'alias');
+        $this->assert('hello world', 'hello', [], $v);
+        $this->assert('hello world', 'alias', [], $v);
+    }
+
+
+    public function testDefaultRoutineInvokedOnceUsingAlias()
+    {
+        $counter = 0;
+        $v = $this->view();
+        $v->registerDefault(function () use (&$counter) {
+            $counter += 1;
+        });
+        $v->alias('foo', 'hello.latte');
+        $this->assert('hello world', 'foo', [], $v);
+        Assert::same(1, $counter);
+    }
+
+
+    /**
+     * Test that the default routine is not invoked multiple times when using alias chaining.
+     */
+    public function testDefaultRoutineInvokedOnceUsingAliasChaining()
+    {
+        $v = $this->view();
+
+        $counter = 0;
+        $v->registerDefault(function () use (&$counter) {
+            $counter += 1;
+        });
+
+        // foo -> next -> hello -> hello.latte
+        $v->alias('foo', 'next');
+        $v->alias('next', 'hello');
+        $v->alias('hello', 'hello.latte');
+
+        // the default routine will only be called once
+        $this->assert('hello world', 'foo', [], $v);
+        Assert::same(1, $counter);
+    }
+
+
+    public function testDirectChaining()
+    {
+        $v = $this->view();
+
+        // register a routine named 'next', that will render `hello.latte`
+        $v->register('next', function (Runtime $context) {
+            return $context->withTarget('hello.latte');
+        });
+
+        // register two routines that will render using a different routine ('next')
+        $v->register('foo', function (Runtime $context) use ($v) {
+            // this way is a bit cumbersome and the context is lost (!)
+            return $v->render($context->getResponse(), 'next');
+        });
+        $v->register('bar', function (Runtime $context) use ($v) {
+            // this feels better and the context is preserved
+            return $v->next($context, 'next');
+        });
+
+        // sanity test - render using the routine
+        $this->assert('hello world', 'next', [], $v);
+
+        // render using chaining
+        $this->assert('hello world', 'foo', [], $v);
+        $this->assert('hello world', 'bar', [], $v);
+    }
+
+
+    /**
+     * This INTENTIONALLY does not work, because it could cause trouble, for example cyclic routine invoking (endless loop).
+     *
+     * $view->register('foo.latte', function($context){ return $context->withParams(...); });
+     * $view->render($response, 'foo.latte');
+     *
+     * TODO The above would cause endless loop, UNLESS it was guarded in a while that would run the rendering chain...
+     */
+    public function intentionally__not__working___testRoutineChaining()
+    {
+        $v = $this->view();
 
         // register a routine that will set target to a second routine
-        $v->register('foo', function(Runtime $context){
+        $v->register('foo', function (Runtime $context) {
             return $context->withTarget('next');
         });
         // register a routine named 'next', that will render `hello.latte`
-        $v->register('next', function(Runtime $context){
+        $v->register('next', function (Runtime $context) {
             return $context->withTarget('hello.latte');
         });
 

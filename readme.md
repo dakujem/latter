@@ -192,7 +192,7 @@ $view->register('shopping-cart', function (Runtime $context) {
     $params = array_merge(['default' => 'value'], $context->getParams());
 
     // the Runtime::toResponse helper method can be used for default rendering
-    return $context->toResponse($template, $params);
+    return $context->withTarget($template)->withParams($params);
 });
 ```
 
@@ -300,7 +300,7 @@ Alternatively, it is also possible to define the pipeline as a part of the rende
 ```php
 $view->register('contacts-page', $view->pipeline('base-layout', function (Runtime $context) {
     // ... do whatever setup needed for rendering the contacts page
-    return $context->toResponse( ... );
+    return $context->withParams( ... );
 }));
 ```
 

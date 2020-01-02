@@ -45,14 +45,14 @@ class View implements Renderer
     public function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
         // check for $target alias
-        $name = $this->getName($target) ?? $target;
+//        $name = $this->getName($target) ?? $target;
 
         // check if a registered rendering routine exists
-        $routine = $this->getRoutine($name) ?? $this->getDefaultRoutine();
+        $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
 
         $context = new Runtime(/*$this,*/ $response, $target, $params, $latte ?? $this->getEngine());
 
-        return $this->terminate($context, $name, $routine);
+        return $this->terminate($context, $routine);
 
         // todo missing $name param if run this way...
         return static::execute([$routine, function (Runtime $context, string $name): Response {
@@ -88,32 +88,32 @@ class View implements Renderer
     public function pipeline(...$routines): PipelineRelay
     {
         $queue = [];
-        foreach ($routines as $key) {
-            if (is_string($key)) {
-                $name = $this->getName($key) ?? $key;
-                $routine = $this->getRoutine($name);
+        foreach ($routines as $target) {
+            if (is_string($target)) {
+//                $name = $this->getName($target) ?? $target;
+                $routine = $this->getRoutine($target);
                 if ($routine === null) {
-                    $target = $name . ($name !== $key ? ' ' . $key : '');
+//                    $target = $name . ($name !== $target ? ' ' . $target : '');
                     throw new LogicException("Routine {$target} not registered.");
                 }
-            } elseif (is_callable($key)) {
-                $routine = $key;
-                $name = is_object($routine) ? spl_object_hash($routine) : md5(serialize($routine));
+            } elseif (is_callable($target)) {
+                $routine = $target;
+                $target = is_object($routine) ? spl_object_hash($routine) : md5(serialize($routine));
             } else {
                 throw new LogicException('Invalid routine type. Please provide a routine name or a callable.');
             }
-            if (isset($queue[$name])) {
-                throw new LogicException("Duplicate routines '$name' in the pipeline.");
+            if (isset($queue[$target])) {
+                throw new LogicException("Duplicate routines '{$target}' in the pipeline.");
             }
-            $queue[$name] = $routine;
+            $queue[$target] = $routine;
         }
         $executor = function (array $routines, Runtime $context): Response {
             return static::execute($routines, $context);
         };
         $renderer = function (array $routines, Response $response, string $target, array $params = [], Engine $latte = null) use ($executor) {
-            $name = $this->getName($target) ?? $target;
-            if (isset($routines[$name])) {
-                throw new LogicException("Duplicate routines '$name' in the pipeline.");
+//            $name = $this->getName($target) ?? $target;
+            if (isset($routines[$target])) {
+                throw new LogicException("Duplicate routines '$target' in the pipeline.");
             }
 //            $routines[$name] = function (Runtime $context): Response {
 //                return $this->render(
@@ -125,8 +125,8 @@ class View implements Renderer
 //            };
 
             // add the terminating routine
-            $routines[$name] = function (Runtime $context, string $name): Response {
-                return $this->terminate($context, $name, null);
+            $routines[$target] = function (Runtime $context): Response {
+                return $this->terminate($context, null);
             };
             // create the starting context
             $context = new Runtime($response, $target, $params, $latte ?? $this->getEngine());
@@ -147,7 +147,6 @@ class View implements Renderer
      * Routine signature:
      *      function(
      *          Dakujem\Latter\Runtime  $runtime,
-     *          string                  $name,    // name under which the routine is registered
      *      ): Psr\Http\Message\ResponseInterface|Dakujem\Latter\Runtime|void
      *
      * A render routine must return a ResponseInterface implementation.
@@ -209,10 +208,11 @@ class View implements Renderer
      */
     public function alias(string $name, string $target): self
     {
-        $routine = function (Runtime $context) use ($target) {
-            return $context->withTarget($target);
+        $aliasRoutine = function (Runtime $context) use ($target) {
+            $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
+            return $this->terminate($context->withTarget($target), $routine);
         };
-        return $this->register($name, $routine);
+        return $this->register($name, $aliasRoutine);
     }
 
 
@@ -320,14 +320,13 @@ class View implements Renderer
      * the function will render the target template and write to the Response object's body.
      *
      * @param Runtime       $context
-     * @param string        $name
      * @param callable|null $routine
      * @return Response
      */
-    private function terminate(Runtime $context, string $name, callable $routine = null): Response
+    private function terminate(Runtime $context, callable $routine = null): Response
     {
         if ($routine !== null) {
-            $result = call_user_func($routine, $context, $name);
+            $result = call_user_func($routine, $context);
             if ($result instanceof Response) {
                 return $result;
             }
@@ -344,10 +343,27 @@ class View implements Renderer
     }
 
 
+    /**
+     * @internal todo
+     * TODO make this public or remove all together ??
+     *
+     * Terminate rendering using a different render routine.
+     * Note: Using this will cause dependency. Consider using pipelines instead.
+     *
+     * @param Runtime $context
+     * @param string  $name
+     * @return Response
+     */
+    public function next(Runtime $context, string $name)
+    {
+        return $this->terminate($context, $this->getRoutine($name));
+    }
+
+
     private static function execute(array $routines, Runtime $context): Response
     {
-        foreach ($routines as $name => $routine) {
-            $result = call_user_func($routine, $context, $name);
+        foreach ($routines as $routine) {
+            $result = call_user_func($routine, $context);
 
             // if a Response is returned, return it
             if ($result instanceof Response) {
