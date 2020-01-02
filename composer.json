@@ -1,34 +1,41 @@
 {
-	"name": "dakujem/latter",
-	"license": "Unlicense",
-	"keywords": [
-		"latte",
-		"template",
-		"slim",
-		"view"
-	],
-	"authors": [
-		{
-			"name": "Andrej Rypák",
-			"email": "xrypak@gmail.com"
-		}
-	],
-	"require": {
-		"php": ">=7.1",
-		"latte/latte": "^2.5",
-		"psr/http-message": "^1.0"
-	},
-	"require-dev": {
-		"dakujem/sleeve": "^1"
-	},
-	"autoload": {
-		"classmap": [
-			"src/"
-		]
-	},
-	"extra": {
-		"branch-alias": {
-			"dev-master": "1.0.x-dev"
-		}
-	}
+  "name": "dakujem/latter",
+  "license": "Unlicense",
+  "keywords": [
+    "latte",
+    "template",
+    "slim",
+    "view"
+  ],
+  "authors": [
+    {
+      "name": "Andrej Rypák",
+      "email": "xrypak@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.1",
+    "psr/http-message": "^1.0"
+  },
+  "require-dev": {
+    "dakujem/sleeve": "^1.0",
+    "nette/tester": "^2.3",
+    "latte/latte": "^2.5",
+    "nyholm/psr7": "^1.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "Dakujem\\Latter\\": "src/"
+    }
+  },
+  "scripts": {
+    "test": "@test:local",
+    "test:local": "tester tests -C",
+    "test:ci": "tester tests"
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-master": "1.0.x-dev"
+    }
+  }
 }
