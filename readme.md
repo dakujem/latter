@@ -167,8 +167,8 @@ They may be used to
 - or even to use a completely different Engine instance or render own Response
 
 A render routine is a _callable_ that receives a `Runtime` context object and returns a _response_, with the following signature:
-```php
-function(Dakujem\Latter\Runtime $runtime): Psr\Http\Message\ResponseInterface
+```
+function(Dakujem\Latter\Runtime $context): Psr\Http\Message\ResponseInterface | Dakujem\Latter\Runtime
 ```
 
 Example:
@@ -206,7 +206,7 @@ $view->render($response, 'shopping-cart', $params);
 
 You may optionally specify a default render routine, that will be used for all non-specified templates.
 ```php
-$view->registerDefault( $routine );
+$view->registerDefault( function (Runtime $context) { ... } );
 ```
 The default render routine call has exactly the same signature as the named ones.
 
