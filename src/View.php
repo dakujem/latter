@@ -114,6 +114,21 @@ class View implements Renderer
     }
 
 
+    /**
+     * Terminate rendering using a different render routine.
+     *
+     * This method is meant to be used within rendering routines to enable explicit chaining.
+     *
+     * @param Runtime       $context
+     * @param callable|null $routine
+     * @return Response
+     */
+    public function next(Runtime $context, callable $routine = null): Response
+    {
+        return $this->terminate($context, $routine);
+    }
+
+
 #   ++-----------------++
 #   ||  Configuration  ||
 #   ++-----------------++
@@ -281,25 +296,80 @@ class View implements Renderer
      */
     private function terminate(Runtime $context, callable $routine = null): Response
     {
-//        if ($routine !== null) {
-//            $result = call_user_func($routine, $context);
-//            if ($result instanceof Response) {
-//                return $result;
-//            }
-//            if ($result instanceof Runtime) {
-//                $context = $result;
-//            }
-//        }
-//
-//        // no rendering routine exists, use the default one (needs an Engine instance)
-//        if ($context->getEngine() === null) {
-//            throw new LogicException('Engine is needed.');
-//        }
-//        return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
-
         return $this->execute([$routine, $this->terminal()], $context);
     }
 
+
+    /**
+     * Return a function that will terminate rendering using a given context.
+     * The terminal routine will invoke Latte rendering.
+     *
+     * @return callable
+     */
+    private function terminal(): callable
+    {
+        return function (Runtime $context): Response {
+            // no rendering routine exists, use the default one (needs an Engine instance)
+            if ($context->getEngine() === null) {
+                throw new LogicException('Engine is needed.');
+            }
+            return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
+        };
+    }
+
+
+    /**
+     * Execute given routines and return a response.
+     *
+     * @param callable[] $routines
+     * @param Runtime    $context the initial context
+     * @return Response
+     */
+    private function execute(array $routines, Runtime $context): Response
+    {
+        $result = $this->processRoutines($routines, $context);
+        if ($result instanceof Response) {
+            return $result;
+        }
+        throw new RuntimeException('Rendering pipeline did not produce a response.');
+    }
+
+
+    /**
+     * Execute given routines and return either a response or the final rendering context.
+     * @internal
+     *
+     * @param callable[] $routines
+     * @param Runtime    $context the initial context
+     * @return Response|Runtime
+     */
+    private function processRoutines(array $routines, Runtime $context)
+    {
+        foreach ($routines as $routine) {
+            if ($routine !== null) {
+                // execute a routine
+                $result = call_user_func($routine, $context);
+
+                // if a Response is returned by the routine, return it
+                if ($result instanceof Response) {
+                    return $result;
+                }
+
+                // if a new context is returned, it becomes the context for the next routine
+                if ($result instanceof Runtime) {
+                    $context = $result;
+                }
+            }
+        }
+
+        // if no routine returned a response, return the final context
+        return $context;
+    }
+
+
+#   ++----------------------++
+#   ||  Unfinished / draft  ||
+#   ++----------------------++
 
     /**
      * This method is a failed attempt to enable implicit chaining,
@@ -352,81 +422,5 @@ class View implements Renderer
         return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
     }
 
-
-    /**
-     * Return a function that will terminate rendering using a given context.
-     * The terminal routine will invoke Latte rendering.
-     *
-     * @return callable
-     */
-    private function terminal(): callable
-    {
-        return function (Runtime $context): Response {
-            // no rendering routine exists, use the default one (needs an Engine instance)
-            if ($context->getEngine() === null) {
-                throw new LogicException('Engine is needed.');
-            }
-            return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
-        };
-    }
-
-
-    /**
-     * @internal todo
-     * TODO make this public or remove all together ??
-     *
-     * Terminate rendering using a different render routine.
-     * Note: Using this will cause dependency. Consider using pipelines instead.
-     *
-     * @param Runtime $context
-     * @param string  $name
-     * @return Response
-     */
-    public function next(Runtime $context, string $name)
-    {
-        return $this->execute([$this->getRoutine($name), $this->terminal()], $context);
-//        return $this->terminate($context, $this->getRoutine($name));
-    }
-
-
-    private function execute(array $routines, Runtime $context): Response
-    {
-        $result = $this->processRoutines($routines, $context);
-        if ($result instanceof Response) {
-            return $result;
-        }
-        throw new RuntimeException('Rendering pipeline did not produce a response.');
-    }
-
-
-    /**
-     * Execute given routines and return either a response or the final rendering context.
-     * @internal
-     *
-     * @param callable[] $routines
-     * @param Runtime    $context the initial context
-     * @return Response|Runtime
-     */
-    private function processRoutines(array $routines, Runtime $context)
-    {
-        foreach ($routines as $routine) {
-            if ($routine !== null) {
-                // execute a routine
-                $result = call_user_func($routine, $context);
-
-                // if a Response is returned by the routine, return it
-                if ($result instanceof Response) {
-                    return $result;
-                }
-
-                // if a new context is returned, it becomes the context for the next routine
-                if ($result instanceof Runtime) {
-                    $context = $result;
-                }
-            }
-        }
-
-        // if no routine returned a response, return the final context
-        return $context;
-    }
+// The End.
 }

@@ -395,7 +395,7 @@ class ViewTest extends TestCase
     }
 
 
-    public function testDirectChaining()
+    public function testExplicitChaining()
     {
         $v = $this->view();
 
@@ -411,7 +411,7 @@ class ViewTest extends TestCase
         });
         $v->register('bar', function (Runtime $context) use ($v) {
             // this feels better and the context is preserved
-            return $v->next($context, 'next');
+            return $v->next($context, $v->getRoutine('next'));
         });
 
         // sanity test - render using the routine
@@ -420,6 +420,34 @@ class ViewTest extends TestCase
         // render using chaining
         $this->assert('hello world', 'foo', [], $v);
         $this->assert('hello world', 'bar', [], $v);
+    }
+
+
+    /**
+     * TODO this should work ... (implicit chaining, at least from the default routine)
+     */
+    public function NOT_WORKING__testUsingDefaultRoutineFollowedImplicitlyByNamedRoutine()
+    {
+        $v = $this->view();
+        $v->registerDefault(function (Runtime $context) {
+            return $context->withTarget($context->getTarget() . '.latte')->withParam('name', 'Guest');
+        });
+
+        // rendering 'name' will trigger the default that will switch the target to 'name.latte'
+        $v->register('name.latte', function (Runtime $context) {
+            return $context->withParam('name', 'Fero');
+        });
+
+        // routine 'name.latte' should be imlicitly called
+        $this->assert('hello Fero', 'name', [], $v);
+
+        // rendering 'has' will trigger the default that will switch the target to 'has.latte', which is the alias of 'foobar'
+        $v->register('foobar', function (Runtime $context) {
+            return $context->withParam('name', 'Fero');
+        }, 'has.latte');
+
+        // routine 'name.latte' should be imlicitly called
+        $this->assert('Fero has got apples.', 'has', ['object' => 'apples'], $v);
     }
 
 
