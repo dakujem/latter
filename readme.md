@@ -108,7 +108,7 @@ Now let's define a `Latter\View` service.
 $container->set('view', function () use ($container) {
     $view = new Dakujem\Latter\View();
 
-    // optionally set an engine factory
+    // optionally set an engine factory (recommended)
     $view->setEngine(function () use ($container): Latte\Engine {
         return $container->get('latte');
     });
@@ -132,7 +132,7 @@ The `View` service definition can contain these optional definitions:
 - template aliases
 - render routines (template rendering)
 - render pipelines
-- engine factory (recommended)
+- engine factory
 - default parameters
 - default render routine
 
@@ -298,14 +298,40 @@ This kind of rendering could be compared to tagging or decorating a template bef
 
 Alternatively, it is also possible to define the pipeline as a part of the rendering routine:
 ```php
-$view->register('contacts-page', $view->pipeline('base-layout', function (Runtime $context) {
+$view->register('contacts.latte', $view->pipeline('base-layout', function (Runtime $context) {
     // ... do whatever setup needed for rendering the contacts page
-    return $context->withParams( ... );
+    return $context->withParams(['foo' => 'bar']);
 }));
+```
+```latte
+{*} contacts.latte {*}
+{layout 'base.latte'}
+{block #content}
+<p>Contact: {$foo}</p>
+```
+```php
+$view->render($response, 'contacts.latte');
+```
+
+
+### Explicit chaining
+
+Sometimes it is desired to invoke one rendering routine from within another. This is possible.
+```php
+// register a routine named 'ahoy', that will render `hello.latte`
+$view->register('ahoy', function (Runtime $context) {
+    return $context->withTarget('hello.latte');
+});
+// register a routine that will internally invoke it
+$view->register('foo', function (Runtime $context) use ($view) {
+    return $view->next($context, $view->getRoutine('ahoy'));
+});
+
+// render 'hello.latte' using 'foo' routine that internally uses 'ahoy' routine
+$view->render($response, 'foo');
 ```
 
 
 ## Contributions
 
 ... are welcome. 🍵
-
