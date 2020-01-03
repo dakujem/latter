@@ -41,11 +41,11 @@ class View implements Renderer
      */
     public function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
-        // check if a registered rendering routine exists
+        // get the rendering routine, fall back to the default one
         $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
-
+        // create a starting context
         $context = new Runtime($response, $target, $params, $latte ?? $this->getEngine());
-//        return $this->execute([$routine, $this->terminal()], $context);
+        // execute the routine
         return $this->terminate($context, $routine);
     }
 
@@ -94,8 +94,8 @@ class View implements Renderer
             }
             $queue[$target] = $routine;
         }
-        $executor = function (array $routines, Runtime $context): Response {
-            return $this->execute($routines, $context);
+        $executor = function (Runtime $context, array $routines) {
+            return $this->execute($context, $routines);
         };
         $renderer = function (array $routines, Response $response, string $target, array $params = [], Engine $latte = null) use ($executor) {
             if (isset($routines[$target])) {
@@ -105,27 +105,12 @@ class View implements Renderer
             $routines[] = $this->getRoutine($target) ?? $this->getDefaultRoutine();
             // add the terminating routine
             $routines[] = $this->terminal();
-            // create the starting context
+            // create a starting context
             $context = new Runtime($response, $target, $params, $latte ?? $this->getEngine());
             // execute the pipeline
-            return call_user_func($executor, $routines, $context);
+            return call_user_func($executor, $context, $routines);
         };
         return new PipelineRelay($queue, $executor, $renderer);
-    }
-
-
-    /**
-     * Terminate rendering using a different render routine.
-     *
-     * This method is meant to be used within rendering routines to enable explicit chaining.
-     *
-     * @param Runtime       $context
-     * @param callable|null $routine
-     * @return Response
-     */
-    public function next(Runtime $context, callable $routine = null): Response
-    {
-        return $this->terminate($context, $routine);
     }
 
 
@@ -186,8 +171,7 @@ class View implements Renderer
     {
         $aliasRoutine = function (Runtime $context) use ($target): Response {
             $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
-//            return $this->execute([$routine, $this->terminal()], $context->withTarget($target));
-            return $this->terminate($context->withTarget($target), $routine);
+            return $this->another($context->withTarget($target), $routine);
         };
         return $this->register($name, $aliasRoutine);
     }
@@ -250,6 +234,58 @@ class View implements Renderer
     }
 
 
+#   ++--------------------++
+#   ||  Routine Chaining  ||
+#   ++--------------------++
+
+    /**
+     * Terminate rendering using another render routine.
+     *
+     * This method is meant to be used within rendering routines to enable explicit chaining.
+     *
+     * @param Runtime       $context
+     * @param callable|null $routine
+     * @return Response
+     */
+    public function another(Runtime $context, callable $routine = null): Response
+    {
+        return $this->terminate($context, $routine);
+    }
+
+
+    /**
+     * Execute given routines and return either a response or the final rendering context.
+     *
+     * This method is meant to be used within rendering routines to enable explicit chaining.
+     *
+     * @param Runtime    $context the initial context
+     * @param callable[] $routines
+     * @return Response|Runtime
+     */
+    public function execute(Runtime $context, array $routines)
+    {
+        foreach ($routines as $routine) {
+            if ($routine !== null) {
+                // execute a routine
+                $result = call_user_func($routine, $context);
+
+                // if a Response is returned by the routine, return it
+                if ($result instanceof Response) {
+                    return $result;
+                }
+
+                // if a new context is returned, it becomes the context for the next routine
+                if ($result instanceof Runtime) {
+                    $context = $result;
+                }
+            }
+        }
+
+        // if no routine returned a response, return the final context
+        return $context;
+    }
+
+
 #   ++-----------++
 #   ||  Getters  ||
 #   ++-----------++
@@ -288,13 +324,21 @@ class View implements Renderer
      * If no Response object is returned by the routine,
      * the function will render the target template and write to the Response object's body.
      *
-     * @param Runtime       $context
+     * @param Runtime       $context the initial context
      * @param callable|null $routine
      * @return Response
      */
     private function terminate(Runtime $context, callable $routine = null): Response
     {
-        return $this->execute([$routine, $this->terminal()], $context);
+        $pipeline = [
+            $routine, // Note: if a routine is `null`, it is ignored
+            $this->terminal(),
+        ];
+        $result = $this->execute($context, $pipeline);
+        if ($result instanceof Response) {
+            return $result;
+        }
+        throw new RuntimeException('Rendering pipeline did not produce a response.');
     }
 
 
@@ -313,55 +357,6 @@ class View implements Renderer
             }
             return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
         };
-    }
-
-
-    /**
-     * Execute given routines and return a response.
-     *
-     * @param callable[] $routines
-     * @param Runtime    $context the initial context
-     * @return Response
-     */
-    private function execute(array $routines, Runtime $context): Response
-    {
-        $result = $this->processRoutines($routines, $context);
-        if ($result instanceof Response) {
-            return $result;
-        }
-        throw new RuntimeException('Rendering pipeline did not produce a response.');
-    }
-
-
-    /**
-     * Execute given routines and return either a response or the final rendering context.
-     * @internal
-     *
-     * @param callable[] $routines
-     * @param Runtime    $context the initial context
-     * @return Response|Runtime
-     */
-    private function processRoutines(array $routines, Runtime $context)
-    {
-        foreach ($routines as $routine) {
-            if ($routine !== null) {
-                // execute a routine
-                $result = call_user_func($routine, $context);
-
-                // if a Response is returned by the routine, return it
-                if ($result instanceof Response) {
-                    return $result;
-                }
-
-                // if a new context is returned, it becomes the context for the next routine
-                if ($result instanceof Runtime) {
-                    $context = $result;
-                }
-            }
-        }
-
-        // if no routine returned a response, return the final context
-        return $context;
     }
 
 
@@ -390,7 +385,7 @@ class View implements Renderer
         $default = $this->getDefaultRoutine();
         while ($context->getTarget() !== $target) {
             $routine = $this->getRoutine($context->getTarget()) ?? $default;
-            $result = $this->processRoutines([$routine], $context);
+            $result = $this->execute($context, [$routine]);
 
             // a response has been returned => terminate rendering.
             if ($result instanceof Response) {
@@ -419,6 +414,16 @@ class View implements Renderer
         }
         return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
     }
+
+
+    private function chainTarget(): callable
+    {
+        return function (Runtime $context) {
+            $routine = $this->getRoutine($context->getTarget());
+            return $routine !== null ? $this->another($context, $routine) : null;
+        };
+    }
+
 
 // The End.
 }

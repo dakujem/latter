@@ -60,7 +60,7 @@ class ConfigurationTest extends BaseTest
             /** @var View $this $this is bound to the View instance */
             $this->setEngine($engineProvider);
             $this->register('foo', function (Runtime $context) {
-                return $this->next($context->withParam('name', 'Gent'), $this->getRoutine('bar'));
+                return $this->another($context->withParam('name', 'Gent'), $this->getRoutine('bar'));
             });
             $this->register('bar', function (Runtime $context) {
                 return $context->withTarget('name.latte');

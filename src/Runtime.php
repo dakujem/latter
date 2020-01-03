@@ -17,11 +17,6 @@ final class Runtime
     private $response;
 
     /**
-     * @var View
-     */
-    private $view;
-
-    /**
      * Latte engine.
      *
      * @var Engine
@@ -52,14 +47,12 @@ final class Runtime
 
     /**
      * @param Response    $response
-     * @param View        $view
      * @param Engine|null $engine
      * @param array       $params
      * @param string      $target
      * @param mixed       ...$more
      */
     function __construct(
-//        View $view,
         Response $response,
         string $target,
         array $params = [],
@@ -67,7 +60,6 @@ final class Runtime
         ...$more
     )
     {
-//        $this->view = $view;
         $this->response = $response;
         $this->target = $target;
         $this->params = $params;
@@ -79,7 +71,6 @@ final class Runtime
     /**
      * Static factory.
      *
-     * @param View        $view
      * @param Response    $response
      * @param string      $target
      * @param array       $params
@@ -88,7 +79,6 @@ final class Runtime
      * @return static
      */
     static function i(
-//        View $view,
         Response $response,
         string $target,
         array $params = [],
@@ -97,7 +87,6 @@ final class Runtime
     ): self
     {
         return new static(
-//            $view,
             $response,
             $target,
             $params,
@@ -106,36 +95,10 @@ final class Runtime
         );
     }
 
-//
-//    /**
-//     * Render the target into a response body using the internal View instance.
-//     *
-//     * @param string|null   $target
-//     * @param array|null    $params
-//     * @param Engine|null   $engine
-//     * @param Response|null $response
-//     * @return Response
-//     */
-//    function toResponse(
-//        string $target = null,
-//        array $params = null,
-//        Engine $engine = null,
-//        Response $response = null
-//    ): Response
-//    {
-//        return $this->getView()->respond(
-//            $response ?? $this->getResponse(),
-//            $engine ?? $this->getEngine(),
-//            $target ?? $this->getTarget(),
-//            $params ?? $this->getParams()
-//        );
-//    }
-
 
     function withParams(array $params): self
     {
         return new static(
-//            $this->view,
             $this->response,
             $this->target,
             $params,
@@ -160,7 +123,6 @@ final class Runtime
     function withTarget(string $target): self
     {
         return new static(
-//            $this->view,
             $this->response,
             $target,
             $this->params,
@@ -177,15 +139,6 @@ final class Runtime
     {
         return $this->response;
     }
-//
-//
-//    /**
-//     * @return View
-//     */
-//    function getView(): View
-//    {
-//        return $this->view;
-//    }
 
 
     /**

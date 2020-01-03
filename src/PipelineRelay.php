@@ -30,15 +30,15 @@ final class PipelineRelay implements Renderer
     }
 
 
-    public function __invoke(...$args): Response
+    public function __invoke(...$args)
     {
         return $this->execute(...$args);
     }
 
 
-    public function execute(Runtime $context, ...$args): Response
+    public function execute(Runtime $context, ...$args)
     {
-        return call_user_func($this->executor, $this->routines, $context, ...$args);
+        return call_user_func($this->executor, $context, $this->routines, ...$args);
     }
 
 

@@ -316,7 +316,7 @@ $view->render($response, 'contacts.latte');
 
 ### Explicit chaining
 
-Sometimes it is desired to invoke one rendering routine from within another. This is possible.
+Sometimes it is desired to invoke one rendering routine from within another. This is possible using `View::another` or `View::execute`.
 ```php
 // register a routine named 'ahoy', that will render `hello.latte`
 $view->register('ahoy', function (Runtime $context) {
@@ -324,12 +324,13 @@ $view->register('ahoy', function (Runtime $context) {
 });
 // register a routine that will internally invoke it
 $view->register('foo', function (Runtime $context) use ($view) {
-    return $view->next($context, $view->getRoutine('ahoy'));
+    return $view->another($context, $view->getRoutine('ahoy'));
 });
 
 // render 'hello.latte' using 'foo' routine that internally uses 'ahoy' routine
 $view->render($response, 'foo');
 ```
+> Note that these methods are not limited to using registered routines, they can execute any callable provided its signature fits.
 
 
 ## Contributions
