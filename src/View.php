@@ -16,9 +16,6 @@ class View implements Renderer
     /** @var callable[] */
     protected $routines = [];
 
-    /** @var string[] */
-    protected $aliases = [];
-
     /** @var callable|null */
     protected $defaultRoutine = null;
 
@@ -44,26 +41,18 @@ class View implements Renderer
      */
     public function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
-        // check for $target alias
-//        $name = $this->getName($target) ?? $target;
-
         // check if a registered rendering routine exists
         $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
 
-        $context = new Runtime(/*$this,*/ $response, $target, $params, $latte ?? $this->getEngine());
-
+        $context = new Runtime($response, $target, $params, $latte ?? $this->getEngine());
+//        return $this->execute([$routine, $this->terminal()], $context);
         return $this->terminate($context, $routine);
-
-        // todo missing $name param if run this way...
-        return static::execute([$routine, function (Runtime $context, string $name): Response {
-            return $this->terminate($context, $name, null);
-        }], $context);
     }
 
 
     /**
      * Render a given template to into a response body.
-     * This is the default rendering process.
+     * The actual Latte rendering occurs within.
      *
      * @param Response $response
      * @param Engine   $latte
@@ -90,10 +79,8 @@ class View implements Renderer
         $queue = [];
         foreach ($routines as $target) {
             if (is_string($target)) {
-//                $name = $this->getName($target) ?? $target;
                 $routine = $this->getRoutine($target);
                 if ($routine === null) {
-//                    $target = $name . ($name !== $target ? ' ' . $target : '');
                     throw new LogicException("Routine {$target} not registered.");
                 }
             } elseif (is_callable($target)) {
@@ -108,26 +95,16 @@ class View implements Renderer
             $queue[$target] = $routine;
         }
         $executor = function (array $routines, Runtime $context): Response {
-            return static::execute($routines, $context);
+            return $this->execute($routines, $context);
         };
         $renderer = function (array $routines, Response $response, string $target, array $params = [], Engine $latte = null) use ($executor) {
-//            $name = $this->getName($target) ?? $target;
             if (isset($routines[$target])) {
                 throw new LogicException("Duplicate routines '$target' in the pipeline.");
             }
-//            $routines[$name] = function (Runtime $context): Response {
-//                return $this->render(
-//                    $context->getResponse(),
-//                    $context->getTarget(),
-//                    $context->getParams(),
-//                    $context->getEngine()
-//                );
-//            };
-
+            // add the rendering routine
+            $routines[] = $this->getRoutine($target) ?? $this->getDefaultRoutine();
             // add the terminating routine
-            $routines[$target] = function (Runtime $context): Response {
-                return $this->terminate($context, null);
-            };
+            $routines[] = $this->terminal();
             // create the starting context
             $context = new Runtime($response, $target, $params, $latte ?? $this->getEngine());
             // execute the pipeline
@@ -182,25 +159,9 @@ class View implements Renderer
 
 
     /**
-     * Ads an alias.
-     * @deprecated brØken
-     *
-     * @param string $name  the name of the template or the rendering routine
-     * @param string $alias an alias that can be used to render the template
-     * @return self
-     */
-    public function alias__broken(string $name, string $alias): self
-    {
-        // todo aliases cause trouble with $name. Aliases are brØken.
-        $this->aliases[$alias] = $name;
-        return $this;
-    }
-
-
-    /**
      * Ads a template alias.
      *
-     * This is a shorthand method to register a routine that will switch the rendering target once invoked.
+     * This is a shorthand method to register a routine that will render different target once invoked.
      *
      * @param string $name   the alias name
      * @param string $target a target to be rendered when using the alias
@@ -208,8 +169,9 @@ class View implements Renderer
      */
     public function alias(string $name, string $target): self
     {
-        $aliasRoutine = function (Runtime $context) use ($target) {
+        $aliasRoutine = function (Runtime $context) use ($target): Response {
             $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
+//            return $this->execute([$routine, $this->terminal()], $context->withTarget($target));
             return $this->terminate($context->withTarget($target), $routine);
         };
         return $this->register($name, $aliasRoutine);
@@ -291,12 +253,6 @@ class View implements Renderer
     }
 
 
-    public function getName(string $target): ?string
-    {
-        return $this->aliases[$target] ?? null;
-    }
-
-
     public function getDefaultParams(): array
     {
         return $this->defaultParams;
@@ -325,13 +281,67 @@ class View implements Renderer
      */
     private function terminate(Runtime $context, callable $routine = null): Response
     {
-        if ($routine !== null) {
-            $result = call_user_func($routine, $context);
+//        if ($routine !== null) {
+//            $result = call_user_func($routine, $context);
+//            if ($result instanceof Response) {
+//                return $result;
+//            }
+//            if ($result instanceof Runtime) {
+//                $context = $result;
+//            }
+//        }
+//
+//        // no rendering routine exists, use the default one (needs an Engine instance)
+//        if ($context->getEngine() === null) {
+//            throw new LogicException('Engine is needed.');
+//        }
+//        return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
+
+        return $this->execute([$routine, $this->terminal()], $context);
+    }
+
+
+    /**
+     * This method is a failed attempt to enable implicit chaining,
+     * that is, right before the terminal routine is called, the execution checks if the context's target
+     * does not point to an existing routine, and if so, renders it,
+     * until a response is returned or the target does not exist.
+     * This has a problem though - there is no way to know if a pipeline ended with the target being rendered or not,
+     * which could cause double rendering of the last routine.
+     *
+     * @internal
+     * @deprecated
+     *
+     * @param Runtime $context
+     * @param string  $target
+     * @return Response
+     */
+    private function finalize(Runtime $context, string $target): Response
+    {
+        $targets = []; // to prevent loops
+        $default = $this->getDefaultRoutine();
+        while ($context->getTarget() !== $target) {
+            $routine = $this->getRoutine($context->getTarget()) ?? $default;
+            $result = $this->processRoutines([$routine], $context);
+
+            // a response has been returned => terminate rendering.
             if ($result instanceof Response) {
                 return $result;
             }
-            if ($result instanceof Runtime) {
-                $context = $result;
+            // the context has not changed or the target has not changed => render the target using Latte
+            if ($result === $context || $result->getTarget() === $context->getTarget()) {
+                break;
+            }
+            // the rendering target has changed => try to process it
+            $target = $context->getTarget();
+            $context = $result;
+            if ($routine === $default) {
+                // to prevent default routine being called multiple times
+                $default = null;
+            }
+            $targets[$target] = true;
+            if (isset($targets[$context->getTarget()])) {
+                throw new LogicException('Rendering loop detected: ' . implode('-', array_keys($targets)) . '-' . $context->getTarget());
             }
         }
 
@@ -340,6 +350,24 @@ class View implements Renderer
             throw new LogicException('Engine is needed.');
         }
         return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
+    }
+
+
+    /**
+     * Return a function that will terminate rendering using a given context.
+     * The terminal routine will invoke Latte rendering.
+     *
+     * @return callable
+     */
+    private function terminal(): callable
+    {
+        return function (Runtime $context): Response {
+            // no rendering routine exists, use the default one (needs an Engine instance)
+            if ($context->getEngine() === null) {
+                throw new LogicException('Engine is needed.');
+            }
+            return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
+        };
     }
 
 
@@ -356,26 +384,49 @@ class View implements Renderer
      */
     public function next(Runtime $context, string $name)
     {
-        return $this->terminate($context, $this->getRoutine($name));
+        return $this->execute([$this->getRoutine($name), $this->terminal()], $context);
+//        return $this->terminate($context, $this->getRoutine($name));
     }
 
 
-    private static function execute(array $routines, Runtime $context): Response
+    private function execute(array $routines, Runtime $context): Response
+    {
+        $result = $this->processRoutines($routines, $context);
+        if ($result instanceof Response) {
+            return $result;
+        }
+        throw new RuntimeException('Rendering pipeline did not produce a response.');
+    }
+
+
+    /**
+     * Execute given routines and return either a response or the final rendering context.
+     * @internal
+     *
+     * @param callable[] $routines
+     * @param Runtime    $context the initial context
+     * @return Response|Runtime
+     */
+    private function processRoutines(array $routines, Runtime $context)
     {
         foreach ($routines as $routine) {
-            $result = call_user_func($routine, $context);
+            if ($routine !== null) {
+                // execute a routine
+                $result = call_user_func($routine, $context);
 
-            // if a Response is returned, return it
-            if ($result instanceof Response) {
-                return $result;
-            }
+                // if a Response is returned by the routine, return it
+                if ($result instanceof Response) {
+                    return $result;
+                }
 
-            // if a new context is returned, it becomes the context for the next routine
-            if ($result instanceof Runtime) {
-                $context = $result;
+                // if a new context is returned, it becomes the context for the next routine
+                if ($result instanceof Runtime) {
+                    $context = $result;
+                }
             }
         }
 
-        throw new RuntimeException('Rendering pipeline did not produce a response.');
+        // if no routine returned a response, return the final context
+        return $context;
     }
 }

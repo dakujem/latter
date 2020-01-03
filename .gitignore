@@ -2,4 +2,5 @@
 vendor
 composer.lock
 /tests/temp
+/tests/output
 !/tests/temp/.gitkeep

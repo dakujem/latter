@@ -164,7 +164,7 @@ class ViewTest extends TestCase
         Assert::same(['a', 'b', 'a', 'b', 'b', 'a'], $used);
     }
 
-    public function testPipelineRendering()
+    public function testPipelineSubroutinesWithParameters()
     {
         $v = $this->view();
         $v->register('withName', function (Runtime $context) {
@@ -196,6 +196,52 @@ class ViewTest extends TestCase
         $this->assert('Pete has got a flying saucer.', 'has.latte', [], $v->pipeline('withName', 'withObject'));
     }
 
+    public function testPipelineRendering()
+    {
+        $v = $this->view();
+        $used = [];
+        $v->register('a', function () use (&$used) {
+            $used[] = 'a';
+        });
+        $v->register('b', function () use (&$used) {
+            $used[] = 'b';
+        });
+        $v->registerDefault(function () {
+            throw new LogicException('The default routine must not be invoked when a routine is registered.');
+        });
+        $v->register('flu', function (Runtime $context) {
+            return $context->withParam('object', 'flu')->withTarget('has.latte');
+        });
+
+        $this->assert('Everyone has got flu.', 'flu', ['name' => 'Everyone'], $v->pipeline('a', 'b'));
+        Assert::same(['a', 'b'], $used);
+    }
+
+    public function testPipelineRenderingWithDefaultRoutine()
+    {
+        $v = $this->view();
+        $used = [];
+        $v->register('a', function () use (&$used) {
+            $used[] = 'a';
+        });
+        $v->register('b', function () use (&$used) {
+            $used[] = 'b';
+        });
+
+        Assert::exception(function () use ($v) {
+            $v->pipeline('a', 'b')->render($this->response(), 'has', ['name' => 'Someone']);
+        }, RuntimeException::class);
+        Assert::same(['a', 'b'], $used);
+
+        // register a default routine
+        $v->registerDefault(function (Runtime $context) {
+            // unless the default routine is executed, the template will not render
+            return $context->withTarget($context->getTarget() . '.latte')->withParam('object', 'nothing');
+        });
+
+        $this->assert('Someone has got nothing.', 'has', ['name' => 'Someone'], $v->pipeline('a', 'b'));
+        Assert::same(['a', 'b', 'a', 'b'], $used);
+    }
 
     public function testAliases()
     {
@@ -323,6 +369,28 @@ class ViewTest extends TestCase
 
         // the default routine will only be called once
         $this->assert('hello world', 'foo', [], $v);
+        Assert::same(1, $counter);
+    }
+
+
+    /**
+     * Test that the default routine is only invoked once, even if the target is constantly being changed.
+     */
+    public function testDefaultRoutineInvokedOnce()
+    {
+        $counter = 0;
+        $v = $this->view();
+        $v->registerDefault(function (Runtime $context) use (&$counter) {
+            $counter += 1;
+            if ($counter >= 10) {
+                throw new LogicException('Looping!');
+            }
+            return $context->withTarget($context->getTarget() . rand(1, 9));
+        });
+
+        Assert::exception(function () use ($v) {
+            return $v->render($this->response(), 'foo');
+        }, RuntimeException::class); // missing template
         Assert::same(1, $counter);
     }
 
