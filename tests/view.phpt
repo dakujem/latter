@@ -23,12 +23,17 @@ require_once('bootstrap.php');
 class ViewTest extends TestCase
 {
 
-    public function testConfiguration()
+    public function testExplicitRendering()
     {
         $v = $this->view(false);
 
         // should run without exception and return a response
         Assert::type(ResponseInterface::class, $v->render($this->response(), 'hello.latte', [], $this->latte()));
+    }
+
+    public function testEngineConfiguration()
+    {
+        $v = $this->view(false);
 
         // missing template file
         Assert::exception(function () use ($v) {
@@ -49,6 +54,18 @@ class ViewTest extends TestCase
         // assert correct rendering
         $this->assert('hello world', 'hello.latte', [], $v);
     }
+
+
+    public function testConfigurationWrapper()
+    {
+        $v = $this->view(false);
+        $v->configure(function () use ($v) {
+            // $this must be bound to the View instance
+            Assert::type(View::class, $this);
+            Assert::same($v, $this);
+        });
+    }
+
 
     public function testRoutineWithTarget()
     {
@@ -474,6 +491,28 @@ class ViewTest extends TestCase
 
         // render using an alias
         $this->assert('hello world', 'foo', [], $v);
+    }
+
+
+    public function testConfigurationScope()
+    {
+        $v = $this->view(false);
+        $v->configure(function (callable $engineProvider) {
+            /** @var View $this $this is bound to the View instance */
+            $this->setEngine($engineProvider);
+            $this->register('foo', function (Runtime $context) {
+                return $this->next($context->withParam('name', 'Gent'), $this->getRoutine('bar'));
+            });
+            $this->register('bar', function (Runtime $context) {
+                return $context->withTarget('name.latte');
+            });
+        }, function () {
+            return $this->latte();
+        });
+
+        // if this renders correctly and without exceptions/errors,
+        // then the 'bar' and 'foo' routines must have been invoked in the correct scope
+        $this->assert('hello Gent', 'foo', [], $v);
     }
 
 

@@ -235,8 +235,6 @@ class View implements Renderer
 
 
     /**
-     * TODO check !!
-     *
      * Configure the view instance easier by binding the configurator closure to it.
      *
      * It is then possible to use $this inside the closures to get the instance.
