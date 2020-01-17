@@ -328,7 +328,7 @@ class View implements Renderer
      * @param callable|null $routine
      * @return Response
      */
-    private function terminate(Runtime $context, callable $routine = null): Response
+    protected function terminate(Runtime $context, callable $routine = null): Response
     {
         $pipeline = [
             $routine, // Note: if a routine is `null`, it is ignored
@@ -348,7 +348,7 @@ class View implements Renderer
      *
      * @return callable
      */
-    private function terminal(): callable
+    protected function terminal(): callable
     {
         return function (Runtime $context): Response {
             // no rendering routine exists, use the default one (needs an Engine instance)
@@ -358,72 +358,6 @@ class View implements Renderer
             return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
         };
     }
-
-
-#   ++----------------------++
-#   ||  Unfinished / draft  ||
-#   ++----------------------++
-
-    /**
-     * This method is a failed attempt to enable implicit chaining,
-     * that is, right before the terminal routine is called, the execution checks if the context's target
-     * does not point to an existing routine, and if so, renders it,
-     * until a response is returned or the target does not exist.
-     * This has a problem though - there is no way to know if a pipeline ended with the target being rendered or not,
-     * which could cause double rendering of the last routine.
-     *
-     * @internal
-     * @deprecated
-     *
-     * @param Runtime $context
-     * @param string  $target
-     * @return Response
-     */
-    private function finalize(Runtime $context, string $target): Response
-    {
-        $targets = []; // to prevent loops
-        $default = $this->getDefaultRoutine();
-        while ($context->getTarget() !== $target) {
-            $routine = $this->getRoutine($context->getTarget()) ?? $default;
-            $result = $this->execute($context, [$routine]);
-
-            // a response has been returned => terminate rendering.
-            if ($result instanceof Response) {
-                return $result;
-            }
-            // the context has not changed or the target has not changed => render the target using Latte
-            if ($result === $context || $result->getTarget() === $context->getTarget()) {
-                break;
-            }
-            // the rendering target has changed => try to process it
-            $target = $context->getTarget();
-            $context = $result;
-            if ($routine === $default) {
-                // to prevent default routine being called multiple times
-                $default = null;
-            }
-            $targets[$target] = true;
-            if (isset($targets[$context->getTarget()])) {
-                throw new LogicException('Rendering loop detected: ' . implode('-', array_keys($targets)) . '-' . $context->getTarget());
-            }
-        }
-
-        // no rendering routine exists, use the default one (needs an Engine instance)
-        if ($context->getEngine() === null) {
-            throw new LogicException('Engine is needed.');
-        }
-        return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
-    }
-
-
-    private function chainTarget(): callable
-    {
-        return function (Runtime $context) {
-            $routine = $this->getRoutine($context->getTarget());
-            return $routine !== null ? $this->another($context, $routine) : null;
-        };
-    }
-
 
 // The End.
 }
