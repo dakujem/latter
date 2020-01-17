@@ -1,5 +1,6 @@
 {
   "name": "dakujem/latter",
+  "description": "Latte view layer for PSR-7 frameworks and stacks.",
   "license": "Unlicense",
   "keywords": [
     "latte",
