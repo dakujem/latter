@@ -52,9 +52,15 @@ abstract class BaseTest extends TestCase
     protected function assert(string $expected, string $template, array $params, Renderer $renderer, bool $trim = true): void
     {
         $r = $renderer->render($this->response(), $template, $params);
-        $body = $r->getBody();
+        Assert::same($expected, $this->read($r, $trim));
+    }
+
+
+    protected function read(ResponseInterface $response, bool $trim = true): string
+    {
+        $body = $response->getBody();
         $body->rewind();
         $content = $body->getContents();
-        Assert::same($expected, $trim ? trim($content) : $content);
+        return $trim ? trim($content) : $content;
     }
 }

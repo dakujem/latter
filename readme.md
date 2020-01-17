@@ -336,6 +336,61 @@ $view->render($response, 'foo');
 > Note that these methods are not limited to using registered routines, they can execute any callable provided its signature fits.
 
 
-## Contributions
+## Tips & tricks
 
+### Use {link} and n:href macros with Slim framework
+
+It is possible to define `{link}` and `n:href` macros that behave similarly to the macros in Nette framework.
+These macros will generate URLs for [_named routes_](http://www.slimframework.com/docs/v4/objects/routing.html#route-names).
+
+First make sure a _filter_ that generates the URL is registered in the Latte Engine, then create a _macro_ that uses the filter.
+```php
+$app = Slim\Factory\AppFactory::create();
+$engine = new Latte\Engine();
+
+// The section below configures the `{link}` and `n:href` macros and the `urlFor` filter.
+$engine->addFilter('urlFor', function ($route, ...$args) use ($app) {
+    // the filter will call the `urlFor` method of the route parser
+    return $app->getRouteCollector()->getRouteParser()->urlFor($route, ...$args);
+    // Note: if you are using slim v3, use `$container->get('router')->pathFor( ... )` instead.
+});
+$macroSet = new MacroSet($engine->getCompiler());
+$linkMacro = function (MacroNode $node, PhpWriter $writer) {
+    return $writer->using($node)->write('echo ($this->filters->urlFor)(%node.word, %node.args?);');
+};
+$macroSet->addMacro('link', $linkMacro);
+$macroSet->addMacro('href', null, null, function (MacroNode $node, PhpWriter $writer) use ($linkMacro) {
+    return ' ?> href="<?php ' . $linkMacro($node, $writer) . ' ?>"<?php ';
+});
+```
+> The above would be best done during the `'latte'` service definition. See [the test](tests/links.phpt) for more details.
+
+Then it is possible to use the macros:
+```latte
+{*} named routes without route parameters {*}
+{link home}
+
+{*} named routes wit route parameters {*}
+{link hello [name => $name]}
+
+{*} named routes with route parameters and query parameters {*}
+{link rc [resource => apple, action => eat], [param1 => val1, param2 => val2]}
+
+{*} n:href macro has the same syntax {*}
+<a n:href='home'>go home</a>
+<a n:href='hello [name => hugo], [a => b]'>polite hello</a>
+
+{*} using the filter is of course possible too {*}
+{='home'|urlFor}
+```
+> 💡\
+> Note the difference to Nette framework - the first macro argument must be an array.\
+> In order for the query parameters to work, `%node.args?` is used in the macro.
+> It is possible to replace `%node.args?` with `%node.array?` in order to ditch query parameters in favor of exact Nette {link} syntax.
+
+
+## Contributions
+    
 ... are welcome. 🍵
+
+Go ahead and fork the repository, make your changes, then submit your PR.

@@ -22,7 +22,8 @@
     "dakujem/sleeve": "^1.0",
     "nette/tester": "^2.3",
     "latte/latte": "^2.5",
-    "nyholm/psr7": "^1.2"
+    "nyholm/psr7": "^1.2",
+    "slim/slim": "^4"
   },
   "autoload": {
     "psr-4": {
