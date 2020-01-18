@@ -11,6 +11,8 @@ use Psr\Http\Message\ResponseInterface as Response;
  * Allows for the following constructions:
  * $view->pipeline( ... )->render( ... );
  * $view->register( ..., $view->pipeline( ... ) );
+ *
+ * Immutable.
  */
 final class PipelineRelay implements Renderer
 {

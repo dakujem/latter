@@ -7,6 +7,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 
 /**
  * Render runtime context object.
+ * Immutable.
  */
 final class Runtime
 {

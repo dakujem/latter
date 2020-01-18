@@ -3,19 +3,19 @@
 [![Build Status](https://travis-ci.org/dakujem/latter.svg?branch=master)](https://travis-ci.org/dakujem/latter)
 ![PHP from Packagist](https://img.shields.io/packagist/php-v/dakujem/latter)
 
-**Latte view layer for PSR-7 frameworks and stacks.**
+**Latte view layer for PSR-7 frameworks and stacks.** It's not a typo.
 
 > 💿 `composer require dakujem/latter`
 
 To use the awesome [Latte templating language](https://latte.nette.org/en/) with a PSR-7 compliant framework like [Slim](https://www.slimframework.com/), one can either struggle to set everything up by himself or use _Latter_.\
-The latter will reduce setup friction and provide utility.
+The latter is a better choice
 
-Latter
-- is designed to reduce code repetition (render pipelines, render routines)
-- reduces setup friction (set up once and forget)
-- is a flexible thin layer that can be tuned and tamed as one desires
+- Latter is designed to reduce code repetition (render pipelines, render routines)
+- Latter is a flexible thin layer that can be tuned and tamed as one desires
+- set up once and forget
 
-> 📖 Check out the [Latte documentation](https://latte.nette.org/en/guide) to get fluent in Latte.
+> 📖\
+> Check out the [Latte documentation](https://latte.nette.org/en/guide) to get fluent in Latte.
 
 
 ## Render Latte template to PSR-7 response
@@ -55,14 +55,16 @@ In such applications, it will make sense to define a `Latter\View` service in a 
 
 ## Cofigure Latte\Engine factory service
 
-First, let's create a service container. I'll be using [Sleeve](https://github.com/dakujem/sleeve), a trivial extension of Symfony [Pimple container](https://pimple.symfony.com/).
+First, let's create a service container.\
+I'll be using [Sleeve](https://github.com/dakujem/sleeve), a trivial extension of Symfony [Pimple container](https://pimple.symfony.com/).
 ```php
 $container = new Dakujem\Sleeve();
 ```
 
 In most cases, a new `Latte\Engine` instance should be created for each template render. That is why a _factory_ service should be defined. That is, every time the service is requested from the service container, a new instance will be returned.
 
-> 💡 Check out the documentation for the service container or framework you are using to configure this step correctly.
+> 💡\
+> Check out the documentation for the service container or framework you are using to configure this step correctly.
 
 ```php
 $container->set('latte', $container->factory(function () use ($container) {
@@ -95,12 +97,6 @@ Now every time we call `$container->get('latte')`, a new instance of a configure
 );
 ```
 Note that we no longer need to prefix the template name with a full path, because of the `FileLoader` configuration.
-
-> Tip
->
-> To slightly improve performance on production servers, auto-refresh can be turned off in the Engine factory:\
-> `$engine->setAutoRefresh($container->settings['dev'] ?? true);`\
-> This has its caveats, read the Latte docs beforehand.
 
 
 ## Configure Latter\View service
@@ -169,7 +165,7 @@ They may be used to
 - modify template name
 - or even to use a completely different Engine instance or render own Response
 
-A render routine is a _callable_ that receives a `Runtime` context object and returns a _response_, with the following signature:
+A render routine is a _callable_ that receives a [`Runtime`](src/Runtime.php) context object and returns a _response_, with the following signature:
 ```
 function(Dakujem\Latter\Runtime $context): Psr\Http\Message\ResponseInterface | Dakujem\Latter\Runtime
 ```
@@ -207,15 +203,15 @@ $view->render($response, 'shopping-cart', $params);
 
 ### Default render routine
 
-You may optionally specify a default render routine, that will be used for all non-specified templates.
+A default render routine may optionally be registered, that will be used for all non-registered templates.
 ```php
 $view->registerDefault( function (Runtime $context) { ... } );
 ```
-The default render routine call has exactly the same signature as the named ones.
+The default render routine has exactly the same signature as the named ones.
 
 It will be used when rendering a template that has not been registered.
 ```php
-$view->render($response, 'a-template-with-no-registered-routine-nor-alias', $params);
+$view->render($response, 'a-template-with-no-registered-routine', $params);
 ```
 
 
@@ -236,14 +232,14 @@ $view->setParams([
 
 ### Render pipelines
 
-If a group of templates share a common setup that needs to be performed on each of them to be rendered or share common variables or filters, pipelines can be used. The most obvious case is using [layouts](https://latte.nette.org/en/tags#toc-template-expansion-inheritance) or common [file](https://latte.nette.org/en/tags#toc-file-including) / [block](https://latte.nette.org/en/tags#toc-block-including) includes.
-
-Pipelines allow multiple _pre-render_ routines to be called one after another before rendering a response.
+Pipelines allow multiple _pre-render_ routines to be called one after another before the final rendering.\
+The routines can be shared across multiple template render calls that share a common layout, common include(s), common setup (filters, variables) or other rendering logic.\
+The most obvious case being [layouts](https://latte.nette.org/en/tags#toc-template-expansion-inheritance) or common [file](https://latte.nette.org/en/tags#toc-file-including) / [block](https://latte.nette.org/en/tags#toc-block-including) includes.
 
 First, appropriate pre-render routines have to be registered:
 ```php
-$view->register(':ClientModule', function (Runtime $context) {
-    // do setup needed for templates in the client module
+$view->register('base-layout', function (Runtime $context) {
+    // do setup needed for templates using the base layout
     $context->getEngine()->addFilter( ... );
     
     // return a context object (!)
@@ -262,11 +258,11 @@ $view->register('--withUser--', function (Runtime $context) {
 
 For pre-render routines used in pipelines, it is important to return a `Runtime` context object. If a `Response` was returned, the pipeline would end prematurely (this might be desired in certain cases though). Return value of any other kind is ignored.
 
-A render calls with a pipeline could look like these:
+Render calls using pipelines could look like these:
 ```php
 // calling a pipeline with 2 _pre-render_ routines and a registered render routine
 $view
-    ->pipeline(':ClientModule', '--withUser--')
+    ->pipeline('base-layout', '--withUser--')
     ->render($response, 'shopping-cart', $params);
 
 // rendering a file with a common _pre-render_ routine
@@ -274,8 +270,6 @@ $view
     ->pipeline('--withUser--')
     ->render($response, 'userProfile.latte', $params);
 ```
-
-This way one can reuse _pre-render_ routines across multiple templates that share a common setup or rendering logic.
 
 Pipelines are particularly useful when dealing with included templates (header, footer) or layout templates that require specific variables or filters to render.\
 Example:
@@ -297,7 +291,7 @@ $view->pipeline('base-layout')->render($response, 'home.latte');
 $view->pipeline('base-layout')->render($response, 'about.latte');
 ```
 
-This kind of rendering could be compared to tagging or decorating a template before rendering.
+This kind of rendering could be compared to tagging or decorating templates before rendering.
 
 Alternatively, it is also possible to define the pipeline as a part of the rendering routine:
 ```php
@@ -337,6 +331,15 @@ $view->render($response, 'foo');
 
 
 ## Tips & tricks
+
+### Performance
+
+Latte templates are compiled on first render. All subsequent renders will use compiled and optimized PHP code.
+
+To slightly improve performance on production servers, auto-refresh can be turned off in the Engine factory:\
+`$engine->setAutoRefresh($container->settings['dev'] ?? true);`\
+This has its caveats, read the Latte docs beforehand.
+
 
 ### Use {link} and n:href macros with Slim framework
 
@@ -387,6 +390,16 @@ Then it is possible to use the macros:
 > Note the difference to Nette framework - the first macro argument must be an array.\
 > In order for the query parameters to work, `%node.args?` is used in the macro.
 > It is possible to replace `%node.args?` with `%node.array?` in order to ditch query parameters in favor of exact Nette {link} syntax.
+
+
+### Setting up the Engine before rendering
+
+It is the intention of render routines to provide a place to set up the `Latte\Engine` instance before rendering a particular template, however, pipelines can be used to quickly set the engine up:
+```php
+$view->pipeline(function(Runtime $context) {
+    $context->getEngine()->addFilter( ... );
+})->render($response, 'myTemplate.latte', ['param' => 'value']);
+```
 
 
 ## Contributions
