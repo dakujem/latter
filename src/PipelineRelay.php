@@ -11,6 +11,7 @@ use Psr\Http\Message\ResponseInterface as Response;
  * A pipeline renderer relay.
  *
  * Allows for the following constructions:
+ * $view->pipeline( ... )->complete( ... );
  * $view->pipeline( ... )->render( ... );
  * $view->register( ..., $view->pipeline( ... ) );
  *
@@ -23,12 +24,20 @@ final class PipelineRelay implements Renderer
     /** @var callable */
     private $executor;
     /** @var callable|null */
+    private $agent;
+    /** @var callable */
     private $renderHandler;
 
-    public function __construct(array $routines, callable $executor, callable $renderHandler = null)
+    public function __construct(
+        array $routines,
+        callable $executor,
+        callable $agent,
+        callable $renderHandler = null
+    )
     {
         $this->routines = $routines;
         $this->executor = $executor;
+        $this->agent = $agent;
         $this->renderHandler = $renderHandler;
     }
 
@@ -41,6 +50,12 @@ final class PipelineRelay implements Renderer
     {
         return ($this->executor)($context, $this->routines, ...$args);
     }
+
+    public function complete(string $target, array $params = [], Engine $latte = null, ...$args): string
+    {
+        return call_user_func($this->agent, $this->routines, $target, $params, $latte, ...$args);
+    }
+
 
     public function render(Response $response, string $target, array $params = [], Engine $latte = null, ...$args): Response
     {

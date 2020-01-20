@@ -49,6 +49,12 @@ class View implements Renderer
         //
         // TODO interface, Runtime
 
+        // get the rendering routine, fall back to the default one
+        $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
+        // create a starting context
+        $context = new Runtime($target, $params, $latte ?? $this->getEngine());
+        // execute the routine
+        return $this->terminate($context, $routine);
     }
 
 
@@ -63,12 +69,8 @@ class View implements Renderer
      */
     public function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
     {
-        // get the rendering routine, fall back to the default one
-        $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
-        // create a starting context
-        $context = new Runtime($response, $target, $params, $latte ?? $this->getEngine());
-        // execute the routine
-        return $this->terminate($context, $routine);
+        $content = $this->complete($target, $params, $latte);
+        return $this->populateResponse($response, $content);
     }
 
     /**
@@ -87,6 +89,35 @@ class View implements Renderer
         $response->getBody()->write($content);
         return $response;
     }
+
+    /**
+     * Render a given template to string.
+     * The actual Latte rendering process occurs within.
+     *
+     * @param Engine   $latte
+     * @param string   $template
+     * @param array    $params
+     * @return string
+     */
+    private function renderLatteTemplate(Engine $latte, string $template, array $params = []): string
+    {
+        return $latte->renderToString($template, array_merge($this->getDefaultParams(), $params));
+    }
+
+
+    /**
+     * Write given content to a Response object's body.
+     *
+     * @param Response $response
+     * @param string   $content
+     * @return Response
+     */
+    private function populateResponse(Response $response, string $content): Response
+    {
+        $response->getBody()->write($content);
+        return $response;
+    }
+
 
     /**
      * Create a rendering pipeline from registered routine names or callable routines.
@@ -117,7 +148,7 @@ class View implements Renderer
         $executor = function (Runtime $context, array $routines) {
             return $this->execute($context, $routines);
         };
-        $renderer = function (array $routines, Response $response, string $target, array $params = [], Engine $latte = null) use ($executor) {
+        $agent = function (array $routines, string $target, array $params = [], Engine $latte = null) use ($executor) {
             if (isset($routines[$target])) {
                 throw new LogicException("Duplicate routines '$target' in the pipeline.");
             }
@@ -126,11 +157,15 @@ class View implements Renderer
             // add the terminating routine
             $routines[] = $this->terminal();
             // create a starting context
-            $context = new Runtime($response, $target, $params, $latte ?? $this->getEngine());
+            $context = new Runtime($target, $params, $latte ?? $this->getEngine());
             // execute the pipeline
             return $executor($context, $routines);
         };
-        return new PipelineRelay($queue, $executor, $renderer);
+        $renderer = function (array $routines, Response $response, string $target, array $params = [], Engine $latte = null) use ($agent) {
+            $content =  call_user_func($agent, $routines, $target, $params, $latte);
+            return $this->populateResponse($response, $content);
+        };
+        return new PipelineRelay($queue, $executor, $agent, $renderer);
     }
 
 #   ++-----------------++
@@ -138,17 +173,16 @@ class View implements Renderer
 #   ++-----------------++
 
     /**
-     * Register a render routine (or a pipeline pre-render routine).
+     * Register a render routine.
      *
      * Routine signature:
      *      function(
      *          Dakujem\Latter\Runtime  $runtime,
-     *      ): Psr\Http\Message\ResponseInterface|Dakujem\Latter\Runtime|void
+     *      ): string|Dakujem\Latter\Runtime|null
      *
-     * A render routine must return a ResponseInterface implementation.
-     * A pre-render routine used in pipelines may return a Runtime object, in which case it is passed
-     * to the next routine in the pipeline. If a ResponseInterface implementation is returned,
-     * the pipeline ends and the response is used.
+     * A routine can return a string or a Runtime object.
+     * If a Runtime object is returned, it is passed to the next routine in the rendering pipeline.
+     * If a string is returned, the pipeline ends and the result is used.
      *
      * @param string $name
      * @param callable $routine
@@ -186,7 +220,7 @@ class View implements Renderer
      */
     public function alias(string $name, string $target): self
     {
-        $aliasRoutine = function (Runtime $context) use ($target): Response {
+        $aliasRoutine = function (Runtime $context) use ($target): string {
             $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
             return $this->another($context->withTarget($target), $routine);
         };
@@ -257,9 +291,9 @@ class View implements Renderer
      *
      * @param Runtime $context
      * @param callable|null $routine
-     * @return Response
+     * @return string
      */
-    public function another(Runtime $context, callable $routine = null): Response
+    public function another(Runtime $context, callable $routine = null): string
     {
         return $this->terminate($context, $routine);
     }
@@ -271,7 +305,7 @@ class View implements Renderer
      *
      * @param Runtime $context the initial context
      * @param callable[] $routines
-     * @return Response|Runtime
+     * @return string|Runtime
      */
     public function execute(Runtime $context, array $routines)
     {
@@ -281,7 +315,7 @@ class View implements Renderer
                 $result = $routine($context);
 
                 // if a Response is returned by the routine, return it
-                if ($result instanceof Response) {
+                if (is_string($result)) {
                     return $result;
                 }
 
@@ -292,7 +326,7 @@ class View implements Renderer
             }
         }
 
-        // if no routine returned a response, return the final context
+        // if no routine returned a string result, return the final context
         return $context;
     }
 
@@ -332,19 +366,19 @@ class View implements Renderer
      *
      * @param Runtime $context the initial context
      * @param callable|null $routine
-     * @return Response
+     * @return string
      */
-    protected function terminate(Runtime $context, callable $routine = null): Response
+    protected function terminate(Runtime $context, callable $routine = null): string
     {
         $pipeline = [
             $routine, // Note: if a routine is `null`, it is ignored
             $this->terminal(),
         ];
         $result = $this->execute($context, $pipeline);
-        if ($result instanceof Response) {
+        if (is_string($result)) {
             return $result;
         }
-        throw new RuntimeException('Rendering pipeline did not produce a response.');
+        throw new RuntimeException('Rendering pipeline did not produce an expected result.');
     }
 
     /**
@@ -355,12 +389,12 @@ class View implements Renderer
      */
     protected function terminal(): callable
     {
-        return function (Runtime $context): Response {
+        return function (Runtime $context): string {
             // no rendering routine exists, use the default one (needs an Engine instance)
             if ($context->getEngine() === null) {
                 throw new LogicException('Engine is needed.');
             }
-            return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
+            return $this->renderLatteTemplate($context->getEngine(), $context->getTarget(), $context->getParams());
         };
     }
 }

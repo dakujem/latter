@@ -30,7 +30,7 @@ class ChainingTest extends BaseTest
         // register two routines that will render using a different routine ('next')
         $v->register('foo', function (Runtime $context) use ($v) {
             // this way might seem more intuitive, but the context is lost (!), NOT recommended
-            return $v->render($context->getResponse(), 'next');
+            return $v->complete('next');
         });
         $v->register('bar', function (Runtime $context) use ($v) {
             // this feels better and the context is preserved
@@ -56,7 +56,7 @@ class ChainingTest extends BaseTest
         $v->register('default', function (Runtime $context) use ($v) {
             if ($context->getTarget() !== 'default') {
                 $response = $v->execute($context, [$v->getRoutine($context->getTarget())]);
-                if ($response instanceof Response) {
+                if (is_string($response)) {
                     return $response;
                 } else {
                     $context = $response;
