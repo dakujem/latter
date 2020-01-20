@@ -27,12 +27,33 @@ class View implements Renderer
     /** @var callable|null function():Engine */
     protected $engine = null;
 
-#   ++-------------++
-#   ||  Rendering  ||
-#   ++-------------++
+#   ++--------------------------++
+#   ||  Completing / Rendering  ||
+#   ++--------------------------++
 
     /**
-     * Prepare and render a target template into a response body.
+     * Complete (render) a target template.
+     * Return the resulting document as string.
+     *
+     * @param string      $target
+     * @param array       $params
+     * @param Engine|null $latte
+     * @return string
+     */
+    public function complete(string $target, array $params = [], Engine $latte = null): string
+    {
+
+        // TODO this could be used in general, for any stacks.
+        //      there is a class of resulting problems though - like terminating a pipeline by returning a Response (which might itself be obsolete),
+        //      but the response would not be in the Runtime object. It could be solved by returning a (new) Result object.
+        //
+        // TODO interface, Runtime
+
+    }
+
+
+    /**
+     * Complete (render) a target template populating a response body.
      *
      * @param Response $response
      * @param string $target

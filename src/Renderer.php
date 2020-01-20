@@ -10,10 +10,10 @@ use Psr\Http\Message\ResponseInterface as Response;
 /**
  * Renderer interface.
  */
-interface Renderer
+interface Renderer extends Agent
 {
     /**
-     * Render a target template populating a response.
+     * Complete a target template populating a response body.
      */
     function render(Response $response, string $target, array $params = [], ?Engine $latte = null): Response;
 }

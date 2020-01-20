@@ -13,7 +13,10 @@ use Psr\Http\Message\ResponseInterface as Response;
  */
 final class Runtime
 {
-    private Response $response;
+    /**
+     * Render target (template/routine name used when render was called).
+     */
+    private ?string $target;
 
     /**
      * Latte engine.
@@ -25,10 +28,7 @@ final class Runtime
      */
     private array $params;
 
-    /**
-     * Render target (template/routine name used when render was called).
-     */
-    private ?string $target;
+    private Response $response;
 
     /**
      * Variable runtime arguments.
