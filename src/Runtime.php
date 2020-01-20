@@ -33,11 +33,6 @@ final class Runtime
     private $params = [];
 
     /**
-     * @var Response
-     */
-    private $response;
-
-    /**
      * Variable runtime arguments.
      *
      * @var array
@@ -46,21 +41,18 @@ final class Runtime
 
 
     /**
-     * @param Response    $response
      * @param Engine|null $engine
      * @param array       $params
      * @param string      $target
      * @param mixed       ...$more
      */
     function __construct(
-        Response $response,
         string $target,
         array $params = [],
         Engine $engine = null,
         ...$more
     )
     {
-        $this->response = $response;
         $this->target = $target;
         $this->params = $params;
         $this->engine = $engine;
@@ -71,7 +63,6 @@ final class Runtime
     /**
      * Static factory.
      *
-     * @param Response    $response
      * @param string      $target
      * @param array       $params
      * @param Engine|null $engine
@@ -79,7 +70,6 @@ final class Runtime
      * @return static
      */
     static function i(
-        Response $response,
         string $target,
         array $params = [],
         Engine $engine = null,
@@ -87,7 +77,6 @@ final class Runtime
     ): self
     {
         return new static(
-            $response,
             $target,
             $params,
             $engine,
@@ -99,7 +88,6 @@ final class Runtime
     function withParams(array $params): self
     {
         return new static(
-            $this->response,
             $this->target,
             $params,
             $this->engine,
@@ -111,7 +99,6 @@ final class Runtime
     function withParam(string $name, $value): self
     {
         return new static(
-            $this->response,
             $this->target,
             array_merge($this->params, [$name => $value]),
             $this->engine,
@@ -123,21 +110,11 @@ final class Runtime
     function withTarget(string $target): self
     {
         return new static(
-            $this->response,
             $target,
             $this->params,
             $this->engine,
             ...$this->more
         );
-    }
-
-
-    /**
-     * @return Response
-     */
-    function getResponse(): Response
-    {
-        return $this->response;
     }
 
 
