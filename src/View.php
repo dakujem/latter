@@ -42,13 +42,6 @@ class View implements Renderer
      */
     public function complete(string $target, array $params = [], Engine $latte = null): string
     {
-
-        // TODO this could be used in general, for any stacks.
-        //      there is a class of resulting problems though - like terminating a pipeline by returning a Response (which might itself be obsolete),
-        //      but the response would not be in the Runtime object. It could be solved by returning a (new) Result object.
-        //
-        // TODO interface, Runtime
-
         // get the rendering routine, fall back to the default one
         $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
         // create a starting context
@@ -72,52 +65,6 @@ class View implements Renderer
         $content = $this->complete($target, $params, $latte);
         return $this->populateResponse($response, $content);
     }
-
-    /**
-     * Render a given template to into a response body.
-     * The actual Latte rendering occurs within.
-     *
-     * @param Response $response
-     * @param Engine $latte
-     * @param string $template
-     * @param array $params
-     * @return Response
-     */
-    public function respond(Response $response, Engine $latte, string $template, array $params): Response
-    {
-        $content = $latte->renderToString($template, array_merge($this->getDefaultParams(), $params));
-        $response->getBody()->write($content);
-        return $response;
-    }
-
-    /**
-     * Render a given template to string.
-     * The actual Latte rendering process occurs within.
-     *
-     * @param Engine   $latte
-     * @param string   $template
-     * @param array    $params
-     * @return string
-     */
-    private function renderLatteTemplate(Engine $latte, string $template, array $params = []): string
-    {
-        return $latte->renderToString($template, array_merge($this->getDefaultParams(), $params));
-    }
-
-
-    /**
-     * Write given content to a Response object's body.
-     *
-     * @param Response $response
-     * @param string   $content
-     * @return Response
-     */
-    private function populateResponse(Response $response, string $content): Response
-    {
-        $response->getBody()->write($content);
-        return $response;
-    }
-
 
     /**
      * Create a rendering pipeline from registered routine names or callable routines.
@@ -162,7 +109,7 @@ class View implements Renderer
             return $executor($context, $routines);
         };
         $renderer = function (array $routines, Response $response, string $target, array $params = [], Engine $latte = null) use ($agent) {
-            $content =  call_user_func($agent, $routines, $target, $params, $latte);
+            $content = call_user_func($agent, $routines, $target, $params, $latte);
             return $this->populateResponse($response, $content);
         };
         return new PipelineRelay($queue, $executor, $agent, $renderer);
@@ -358,6 +305,21 @@ class View implements Renderer
 #   ||  Internal  ||
 #   ++------------++
 
+
+    /**
+     * Write given content to a Response object's body.
+     *
+     * @param Response $response
+     * @param string   $content
+     * @return Response
+     */
+    protected function populateResponse(Response $response, string $content): Response
+    {
+        $response->getBody()->write($content);
+        return $response;
+    }
+
+
     /**
      * Terminate rendering using a context and a routine, if provided.
      *
@@ -394,7 +356,11 @@ class View implements Renderer
             if ($context->getEngine() === null) {
                 throw new LogicException('Engine is needed.');
             }
-            return $this->renderLatteTemplate($context->getEngine(), $context->getTarget(), $context->getParams());
+            $engine = $context->getEngine();
+            return $engine->renderToString(
+                $context->getTarget(),
+                array_merge($this->getDefaultParams(), $context->getParams())
+            );
         };
     }
 }

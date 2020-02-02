@@ -26,19 +26,19 @@ final class PipelineRelay implements Renderer
     /** @var callable|null */
     private $agent;
     /** @var callable */
-    private $renderHandler;
+    private $renderer;
 
     public function __construct(
         array $routines,
         callable $executor,
         callable $agent,
-        callable $renderHandler = null
+        callable $renderer = null
     )
     {
         $this->routines = $routines;
         $this->executor = $executor;
         $this->agent = $agent;
-        $this->renderHandler = $renderHandler;
+        $this->renderer = $renderer;
     }
 
     public function __invoke(...$args)
@@ -59,6 +59,6 @@ final class PipelineRelay implements Renderer
 
     public function render(Response $response, string $target, array $params = [], Engine $latte = null, ...$args): Response
     {
-        return ($this->renderHandler)($this->routines, $response, $target, $params, $latte, ...$args);
+        return ($this->renderer)($this->routines, $response, $target, $params, $latte, ...$args);
     }
 }

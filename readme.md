@@ -51,10 +51,40 @@ $app->run();
 It would of course be an overkill to use Latte in a case like the one above.\
 Most of the time, one will use Latte for more complicated templates with multiple variables, filters and macros.
 
-In such applications, it will make sense to define a `Latter\View` service in a service container for dependency injection. 
+In such applications, it will make sense to define a `Latter\View` service in a service container for dependency injection (see below).
 
 
-## Cofigure Latte\Engine factory service
+## Render or complete a template
+
+A template is an incomplete text with missing parts in it. The text is completed during rendering process, when the missing parts are replaced by variables (rendering parameters).
+
+Latter `View` offers a way to complete the template and get the result as a string.\
+`View::complete` serves this purpose.
+
+```php
+$view->complete(
+    $template, // the template
+    $variables // the variables
+); // returns a string
+```
+
+In Latte slang, _rendering_ equals to completing a template and sending the result to the output.
+By PSR-7 standard, this equals to populating a response's body with the result.\
+`View::render` serves this purpose.
+
+```php
+$view->render(
+    $response, // PSR-7 response interface implementation
+    $template, // the template
+    $variables // the variables
+); // returns a populated Response object
+```
+
+> 💡\
+> These two are equivalent in terms of the completing process, they only differ in the return value and the extra parameter. This documentation uses both interchangably.
+
+
+## Configure Latte\Engine factory service
 
 First, let's create a service container.\
 I'll be using [Sleeve](https://github.com/dakujem/sleeve), a trivial extension of Symfony [Pimple container](https://pimple.symfony.com/).
@@ -148,7 +178,7 @@ $view->alias('hello', 'hello.latte');
 $view->alias('index', 'ClientModule/Index/default.latte');
 ```
 
-To render a template using its alias:
+To complete/render a template using its alias:
 ```php
 $view->render($response, 'hello', $params);
 $view->render($response, 'index', $params);
@@ -159,17 +189,18 @@ $view->render($response, 'index', $params);
 
 Render routines should be used to apply template-specific setup without the need for code repetition.
 
-They may be used to
-- define filters
-- define tags (macros)
-- modify input parameters
-- modify template name
-- or even to use a completely different Engine instance or render own Response
+A render routine is a _callable_ that receives a [`Runtime`](src/Runtime.php) context object and either returns a `Runtime` object or a `string`; signature:
+```
+function(Dakujem\Latter\Runtime $context): Dakujem\Latter\Runtime | string
+```
 
-A render routine is a _callable_ that receives a [`Runtime`](src/Runtime.php) context object and returns a _response_, with the following signature:
-```
-function(Dakujem\Latter\Runtime $context): Psr\Http\Message\ResponseInterface | Dakujem\Latter\Runtime
-```
+Returning a `Runtime` object by a routine may be used
+- to define filters (this will be the most common case)
+- to modify input parameters
+- to modify template name
+- to define tags (macros)
+
+When a routine returns a `string`, it is considered the result of the rendering process and is not processed any further.
 
 Example:
 ```php
@@ -191,13 +222,18 @@ $view->register('shopping-cart', function (Runtime $context) {
     // The params can be modified at will, for example to provide defaults
     $params = array_merge(['default' => 'value'], $context->getParams());
 
-    // the Runtime::toResponse helper method can be used for default rendering
+    // a Runtime object is returned
     return $context->withTarget($template)->withParams($params);
+});
+$view->register('hello', function () {
+    // return a static text, bypassing any further rendering process
+    return 'Hello world.';
 });
 ```
 
-One can render the routine exactly as he would render an alias:
+One can complete/render a template using a routine exactly as he would do with an alias:
 ```php
+$view->complete('shopping-cart', $params);
 $view->render($response, 'shopping-cart', $params);
 ```
 
@@ -257,7 +293,7 @@ $view->register('--withUser--', function (Runtime $context) {
 });
 ```
 
-For pre-render routines used in pipelines, it is important to return a `Runtime` context object. If a `Response` was returned, the pipeline would end prematurely (this might be desired in certain cases though). Return value of any other kind is ignored.
+For pre-render routines used in pipelines, it is important to return a `Runtime` context object. If a `string` was returned, the pipeline would end prematurely (this might be desired in certain cases though). Return value of any other kind is ignored.
 
 Render calls using pipelines could look like these:
 ```php
@@ -266,10 +302,10 @@ $view
     ->pipeline('base-layout', '--withUser--')
     ->render($response, 'shopping-cart', $params);
 
-// rendering a file with a common _pre-render_ routine
+// completing a file with a common _pre-render_ routine
 $view
     ->pipeline('--withUser--')
-    ->render($response, 'userProfile.latte', $params);
+    ->complete('userProfile.latte', $params);
 ```
 
 Pipelines are particularly useful when dealing with included templates (header, footer) or layout templates that require specific variables or filters to render.\
@@ -294,12 +330,13 @@ $view->pipeline('base-layout')->render($response, 'about.latte');
 
 This kind of rendering could be compared to tagging or decorating templates before rendering.
 
-Alternatively, it is also possible to define the pipeline as a part of the rendering routine:
+Alternatively, it is also possible to define the pipeline as an inseparable part of the rendering routine:
 ```php
-$view->register('contacts.latte', $view->pipeline('base-layout', function (Runtime $context) {
+$pipeline = $view->pipeline('base-layout', function (Runtime $context) {
     // ... do whatever setup needed for rendering the contacts page
     return $context->withParams(['foo' => 'bar']);
-}));
+});
+$view->register('contacts.latte', $pipeline);
 ```
 ```latte
 {*} contacts.latte {*}
@@ -309,6 +346,7 @@ $view->register('contacts.latte', $view->pipeline('base-layout', function (Runti
 ```
 ```php
 $view->render($response, 'contacts.latte');
+$view->complete('contacts.latte');
 ```
 
 
@@ -339,7 +377,7 @@ Latte templates are compiled on first render. All subsequent renders will use co
 
 To slightly improve performance on production servers, auto-refresh can be turned off in the Engine factory:\
 `$engine->setAutoRefresh($container->settings['dev'] ?? true);`\
-This has its caveats, read the Latte docs beforehand.
+This has its caveats if the compiled code is not purged during deployment process though.
 
 
 ### Use {link} and n:href macros with Slim framework

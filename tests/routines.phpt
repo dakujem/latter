@@ -82,6 +82,22 @@ class RoutinesTest extends BaseTest
         $this->assert('Hugo has got oranges.', 'has.latte', ['name' => 'Hugo', 'object' => 'oranges'], $v);
     }
 
+    public function testStaticRoutine()
+    {
+        $v = $this->view();
+
+        // missing template file
+        Assert::exception(function () use ($v) {
+            $v->complete('hello');
+        }, RuntimeException::class);
+
+        // renders correctly
+        $v->register('hello', function () {
+            return 'Hello my worlds.';
+        });
+        Assert::same('Hello my worlds.', $v->complete('hello'));
+    }
+
     public function testDefaultParameters()
     {
         $v = $this->view();
