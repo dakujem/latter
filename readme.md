@@ -1,6 +1,5 @@
 # Latter
 
-[![Build Status](https://travis-ci.org/dakujem/latter.svg?branch=master)](https://travis-ci.org/dakujem/latter)
 ![PHP from Packagist](https://img.shields.io/packagist/php-v/dakujem/latter)
 
 **Latte view layer for PSR-7 frameworks and stacks.** It's not a typo.
