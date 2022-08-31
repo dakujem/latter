@@ -48,10 +48,10 @@ class RoutinesTest extends BaseTest
         // should fail with undefined var
         Assert::error(function () use ($v) {
             $v->render($this->response(), 'name.latte');
-        }, E_NOTICE, 'Undefined variable: name');
+        }, ...$this->noticeOrWarning('name'));
         Assert::error(function () use ($v) {
             $v->render($this->response(), 'name.latte', []);
-        }, E_NOTICE, 'Undefined variable: name');
+        }, ...$this->noticeOrWarning('name'));
 
         // with the variable given, the template should render fine
         $this->assert('hello John', 'name.latte', ['name' => 'John'], $v);
@@ -72,7 +72,7 @@ class RoutinesTest extends BaseTest
         // the name has been set in the routine, but the object is still missing:
         Assert::error(function () use ($v) {
             $v->render($this->response(), 'has.latte', []);
-        }, E_NOTICE, 'Undefined variable: object');
+        }, ...$this->noticeOrWarning('object'));
 
         // we provide the object...
         $this->assert('The teacher has got oranges.', 'has.latte', ['object' => 'oranges'], $v);
@@ -89,7 +89,7 @@ class RoutinesTest extends BaseTest
         // should fail with undefined var
         Assert::error(function () use ($v) {
             $v->render($this->response(), 'name.latte');
-        }, E_NOTICE, 'Undefined variable: name');
+        }, ...$this->noticeOrWarning('name'));
 
         // now configure View with default param(s)
         $v->setParams(['name' => 'Hugo']);
@@ -100,7 +100,7 @@ class RoutinesTest extends BaseTest
         // should fail with undefined var yet again
         Assert::error(function () use ($v) {
             $v->render($this->response(), 'has.latte');
-        }, E_NOTICE, 'Undefined variable: object');
+        }, ...$this->noticeOrWarning('object'));
 
         // and the template should render with both the given parameter and the default one
         $this->assert('Hugo has got a car.', 'has.latte', ['object' => 'a car'], $v);
@@ -108,6 +108,14 @@ class RoutinesTest extends BaseTest
         // now set the second param as well
         $v->setParam('object', 'sausages');
         $this->assert('Hugo has got sausages.', 'has.latte', [], $v);
+    }
+
+    /**
+     * In PHP 8+ the notices bacame warnings and the format of the message changed too.
+     */
+    private function noticeOrWarning(string $prop): array
+    {
+        return version_compare(PHP_VERSION, '8.0.0', '<') ? [E_NOTICE, 'Undefined variable: ' . $prop] : [E_WARNING, 'Undefined variable $' . $prop];
     }
 }
 

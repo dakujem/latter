@@ -1,6 +1,8 @@
 # Latter
 
 ![PHP from Packagist](https://img.shields.io/packagist/php-v/dakujem/latter)
+[![Test Suite](https://github.com/dakujem/latter/actions/workflows/php-test.yml/badge.svg)](https://github.com/dakujem/latter/actions/workflows/php-test.yml)
+[![Coverage Status](https://coveralls.io/repos/github/dakujem/latter/badge.svg?branch=trunk)](https://coveralls.io/github/dakujem/latter?branch=trunk)
 
 **Latte view layer for PSR-7 frameworks and stacks.** It's not a typo.
 
