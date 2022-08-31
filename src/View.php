@@ -25,7 +25,6 @@ class View implements Renderer
     /** @var callable|null function():Engine */
     protected $engine = null;
 
-
 #   ++-------------++
 #   ||  Rendering  ||
 #   ++-------------++
@@ -33,9 +32,9 @@ class View implements Renderer
     /**
      * Prepare and render a target template into a response body.
      *
-     * @param Response    $response
-     * @param string      $target
-     * @param array       $params
+     * @param Response $response
+     * @param string $target
+     * @param array $params
      * @param Engine|null $latte
      * @return Response
      */
@@ -49,15 +48,14 @@ class View implements Renderer
         return $this->terminate($context, $routine);
     }
 
-
     /**
      * Render a given template to into a response body.
      * The actual Latte rendering occurs within.
      *
      * @param Response $response
-     * @param Engine   $latte
-     * @param string   $template
-     * @param array    $params
+     * @param Engine $latte
+     * @param string $template
+     * @param array $params
      * @return Response
      */
     public function respond(Response $response, Engine $latte, string $template, array $params): Response
@@ -66,7 +64,6 @@ class View implements Renderer
         $response->getBody()->write($content);
         return $response;
     }
-
 
     /**
      * Create a rendering pipeline from registered routine names or callable routines.
@@ -113,7 +110,6 @@ class View implements Renderer
         return new PipelineRelay($queue, $executor, $renderer);
     }
 
-
 #   ++-----------------++
 #   ||  Configuration  ||
 #   ++-----------------++
@@ -131,8 +127,8 @@ class View implements Renderer
      * to the next routine in the pipeline. If a ResponseInterface implementation is returned,
      * the pipeline ends and the response is used.
      *
-     * @param string      $name
-     * @param callable    $routine
+     * @param string $name
+     * @param callable $routine
      * @param string|null $alias
      * @return self
      */
@@ -142,7 +138,6 @@ class View implements Renderer
         $alias !== null && $this->alias($alias, $name);
         return $this;
     }
-
 
     /**
      * Register a default/fallback routine to be used when rendering a template
@@ -157,13 +152,12 @@ class View implements Renderer
         return $this;
     }
 
-
     /**
      * Ads a template alias.
      *
      * This is a shorthand method to register a routine that will render different target once invoked.
      *
-     * @param string $name   the alias name
+     * @param string $name the alias name
      * @param string $target a target to be rendered when using the alias
      * @return self
      */
@@ -176,12 +170,11 @@ class View implements Renderer
         return $this->register($name, $aliasRoutine);
     }
 
-
     /**
      * Set a single default rendering parameter.
      *
      * @param string $name
-     * @param mixed  $value
+     * @param mixed $value
      * @return self
      */
     public function setParam(string $name, $value): self
@@ -189,7 +182,6 @@ class View implements Renderer
         $this->defaultParams[$name] = $value;
         return $this;
     }
-
 
     /**
      * Set all default rendering parameters.
@@ -204,7 +196,6 @@ class View implements Renderer
         return $this;
     }
 
-
     /**
      * Set Latte engine to be used.
      *
@@ -217,14 +208,13 @@ class View implements Renderer
         return $this;
     }
 
-
     /**
      * Configure the view instance easier by binding the configurator closure to it.
      *
      * It is then possible to use $this inside the closures to get the instance.
      *
      * @param Closure $configurator
-     * @param mixed   ...$args
+     * @param mixed ...$args
      * @return self
      */
     public function configure(Closure $configurator, ...$args): self
@@ -232,7 +222,6 @@ class View implements Renderer
         ($configurator->bindTo($this))(...$args);
         return $this;
     }
-
 
 #   ++--------------------++
 #   ||  Routine Chaining  ||
@@ -243,7 +232,7 @@ class View implements Renderer
      *
      * This method is meant to be used within rendering routines to enable explicit chaining.
      *
-     * @param Runtime       $context
+     * @param Runtime $context
      * @param callable|null $routine
      * @return Response
      */
@@ -252,13 +241,12 @@ class View implements Renderer
         return $this->terminate($context, $routine);
     }
 
-
     /**
      * Execute given routines and return either a response or the final rendering context.
      *
      * This method is meant to be used within rendering routines to enable explicit chaining.
      *
-     * @param Runtime    $context the initial context
+     * @param Runtime $context the initial context
      * @param callable[] $routines
      * @return Response|Runtime
      */
@@ -285,7 +273,6 @@ class View implements Renderer
         return $context;
     }
 
-
 #   ++-----------++
 #   ||  Getters  ||
 #   ++-----------++
@@ -295,24 +282,20 @@ class View implements Renderer
         return $this->routines[$name] ?? null;
     }
 
-
     public function getDefaultRoutine(): ?callable
     {
         return $this->defaultRoutine;
     }
-
 
     public function getDefaultParams(): array
     {
         return $this->defaultParams;
     }
 
-
     public function getEngine(): ?Engine
     {
         return $this->engine ? ($this->engine)() : null;
     }
-
 
 #   ++------------++
 #   ||  Internal  ||
@@ -324,7 +307,7 @@ class View implements Renderer
      * If no Response object is returned by the routine,
      * the function will render the target template and write to the Response object's body.
      *
-     * @param Runtime       $context the initial context
+     * @param Runtime $context the initial context
      * @param callable|null $routine
      * @return Response
      */
@@ -340,7 +323,6 @@ class View implements Renderer
         }
         throw new RuntimeException('Rendering pipeline did not produce a response.');
     }
-
 
     /**
      * Return a function that will terminate rendering using a given context.
@@ -358,6 +340,4 @@ class View implements Renderer
             return $this->respond($context->getResponse(), $context->getEngine(), $context->getTarget(), $context->getParams());
         };
     }
-
-// The End.
 }

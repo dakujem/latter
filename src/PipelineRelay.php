@@ -17,12 +17,11 @@ use Psr\Http\Message\ResponseInterface as Response;
 final class PipelineRelay implements Renderer
 {
     /** @var callable[] */
-    private $routines = [];
+    private array $routines;
     /** @var callable */
     private $executor;
-    /** @var callable */
+    /** @var callable|null */
     private $renderHandler;
-
 
     public function __construct(array $routines, callable $executor, callable $renderHandler = null)
     {
@@ -31,18 +30,15 @@ final class PipelineRelay implements Renderer
         $this->renderHandler = $renderHandler;
     }
 
-
     public function __invoke(...$args)
     {
         return $this->execute(...$args);
     }
 
-
     public function execute(Runtime $context, ...$args)
     {
         return ($this->executor)($context, $this->routines, ...$args);
     }
-
 
     public function render(Response $response, string $target, array $params = [], Engine $latte = null, ...$args): Response
     {

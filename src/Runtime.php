@@ -11,54 +11,41 @@ use Psr\Http\Message\ResponseInterface as Response;
  */
 final class Runtime
 {
-
-    /**
-     * @var Response
-     */
-    private $response;
+    private Response $response;
 
     /**
      * Latte engine.
-     *
-     * @var Engine
      */
-    private $engine = null;
+    private ?Engine $engine;
 
     /**
      * Render parameters.
-     *
-     * @var array
      */
-    private $params = [];
+    private array $params;
 
     /**
      * Render target (template/routine name used when render was called).
-     *
-     * @var string
      */
-    private $target = null;
+    private ?string $target;
 
     /**
      * Variable runtime arguments.
-     *
-     * @var array
      */
-    private $more = [];
-
+    private array $more;
 
     /**
-     * @param Response    $response
+     * @param Response $response
      * @param Engine|null $engine
-     * @param array       $params
-     * @param string      $target
-     * @param mixed       ...$more
+     * @param array $params
+     * @param string $target
+     * @param mixed ...$more
      */
     function __construct(
         Response $response,
-        string $target,
-        array $params = [],
-        Engine $engine = null,
-        ...$more
+        string   $target,
+        array    $params = [],
+        ?Engine  $engine = null,
+                 ...$more
     )
     {
         $this->response = $response;
@@ -68,23 +55,22 @@ final class Runtime
         $this->more = $more;
     }
 
-
     /**
      * Static factory.
      *
-     * @param Response    $response
-     * @param string      $target
-     * @param array       $params
+     * @param Response $response
+     * @param string $target
+     * @param array $params
      * @param Engine|null $engine
-     * @param mixed       ...$more
+     * @param mixed ...$more
      * @return static
      */
     static function i(
         Response $response,
-        string $target,
-        array $params = [],
-        Engine $engine = null,
-        ...$more
+        string   $target,
+        array    $params = [],
+        ?Engine  $engine = null,
+                 ...$more
     ): self
     {
         return new static(
@@ -95,7 +81,6 @@ final class Runtime
             ...$more
         );
     }
-
 
     function withParams(array $params): self
     {
@@ -108,7 +93,6 @@ final class Runtime
         );
     }
 
-
     function withParam(string $name, $value): self
     {
         return new static(
@@ -119,7 +103,6 @@ final class Runtime
             ...$this->more
         );
     }
-
 
     function withTarget(string $target): self
     {
@@ -132,46 +115,26 @@ final class Runtime
         );
     }
 
-
-    /**
-     * @return Response
-     */
     function getResponse(): Response
     {
         return $this->response;
     }
 
-
-    /**
-     * @return Engine|null
-     */
     function getEngine(): ?Engine
     {
         return $this->engine;
     }
 
-
-    /**
-     * @return array
-     */
     function getParams(): array
     {
         return $this->params;
     }
 
-
-    /**
-     * @return string
-     */
     function getTarget(): string
     {
         return $this->target;
     }
 
-
-    /**
-     * @return array
-     */
     function getMore(): array
     {
         return $this->more;
