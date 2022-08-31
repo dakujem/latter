@@ -108,7 +108,7 @@ class View implements Renderer
             // create a starting context
             $context = new Runtime($response, $target, $params, $latte ?? $this->getEngine());
             // execute the pipeline
-            return call_user_func($executor, $context, $routines);
+            return $executor($context, $routines);
         };
         return new PipelineRelay($queue, $executor, $renderer);
     }
@@ -229,7 +229,7 @@ class View implements Renderer
      */
     public function configure(Closure $configurator, ...$args): self
     {
-        call_user_func($configurator->bindTo($this), ...$args);
+        ($configurator->bindTo($this))(...$args);
         return $this;
     }
 
@@ -267,7 +267,7 @@ class View implements Renderer
         foreach ($routines as $routine) {
             if ($routine !== null) {
                 // execute a routine
-                $result = call_user_func($routine, $context);
+                $result = $routine($context);
 
                 // if a Response is returned by the routine, return it
                 if ($result instanceof Response) {
@@ -310,7 +310,7 @@ class View implements Renderer
 
     public function getEngine(): ?Engine
     {
-        return $this->engine ? call_user_func($this->engine) : null;
+        return $this->engine ? ($this->engine)() : null;
     }
 
 

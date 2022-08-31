@@ -40,12 +40,12 @@ final class PipelineRelay implements Renderer
 
     public function execute(Runtime $context, ...$args)
     {
-        return call_user_func($this->executor, $context, $this->routines, ...$args);
+        return ($this->executor)($context, $this->routines, ...$args);
     }
 
 
     public function render(Response $response, string $target, array $params = [], Engine $latte = null, ...$args): Response
     {
-        return call_user_func($this->renderHandler, $this->routines, $response, $target, $params, $latte, ...$args);
+        return ($this->renderHandler)($this->routines, $response, $target, $params, $latte, ...$args);
     }
 }
