@@ -40,7 +40,7 @@ class View implements Renderer
      * @param Engine|null $latte
      * @return Response
      */
-    public function render(Response $response, string $target, array $params = [], Engine $latte = null): Response
+    public function render(Response $response, string $target, array $params = [], ?Engine $latte = null): Response
     {
         // get the rendering routine, fall back to the default one
         $routine = $this->getRoutine($target) ?? $this->getDefaultRoutine();
@@ -96,7 +96,7 @@ class View implements Renderer
         $executor = function (Runtime $context, array $routines) {
             return $this->execute($context, $routines);
         };
-        $renderer = function (array $routines, Response $response, string $target, array $params = [], Engine $latte = null) use ($executor) {
+        $renderer = function (array $routines, Response $response, string $target, array $params = [], ?Engine $latte = null) use ($executor) {
             if (isset($routines[$target])) {
                 throw new LogicException("Duplicate routines '$target' in the pipeline.");
             }
@@ -134,7 +134,7 @@ class View implements Renderer
      * @param string|null $alias
      * @return self
      */
-    public function register(string $name, callable $routine, string $alias = null): self
+    public function register(string $name, callable $routine, ?string $alias = null): self
     {
         $this->routines[$name] = $routine;
         $alias !== null && $this->alias($alias, $name);
@@ -148,7 +148,7 @@ class View implements Renderer
      * @param callable|null $routine
      * @return self
      */
-    public function registerDefault(callable $routine = null): self
+    public function registerDefault(?callable $routine = null): self
     {
         $this->defaultRoutine = $routine;
         return $this;
@@ -238,7 +238,7 @@ class View implements Renderer
      * @param callable|null $routine
      * @return Response
      */
-    public function another(Runtime $context, callable $routine = null): Response
+    public function another(Runtime $context, ?callable $routine = null): Response
     {
         return $this->terminate($context, $routine);
     }
@@ -313,7 +313,7 @@ class View implements Renderer
      * @param callable|null $routine
      * @return Response
      */
-    protected function terminate(Runtime $context, callable $routine = null): Response
+    protected function terminate(Runtime $context, ?callable $routine = null): Response
     {
         $pipeline = [
             $routine, // Note: if a routine is `null`, it is ignored

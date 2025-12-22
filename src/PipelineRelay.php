@@ -25,7 +25,7 @@ final class PipelineRelay implements Renderer
     /** @var callable|null */
     private $renderHandler;
 
-    public function __construct(array $routines, callable $executor, callable $renderHandler = null)
+    public function __construct(array $routines, callable $executor, ?callable $renderHandler = null)
     {
         $this->routines = $routines;
         $this->executor = $executor;
@@ -42,7 +42,7 @@ final class PipelineRelay implements Renderer
         return ($this->executor)($context, $this->routines, ...$args);
     }
 
-    public function render(Response $response, string $target, array $params = [], Engine $latte = null, ...$args): Response
+    public function render(Response $response, string $target, array $params = [], ?Engine $latte = null, ...$args): Response
     {
         return ($this->renderHandler)($this->routines, $response, $target, $params, $latte, ...$args);
     }
