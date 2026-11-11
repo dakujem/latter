@@ -84,7 +84,7 @@ class View implements Renderer
                 }
             } elseif (is_callable($target)) {
                 $routine = $target;
-                $target = is_object($routine) ? spl_object_hash($routine) : md5(serialize($routine));
+                $target = is_object($routine) ? '#' . spl_object_id($routine) : md5(serialize($routine));
             } else {
                 throw new LogicException('Invalid routine type. Please provide a routine name or a callable.');
             }
